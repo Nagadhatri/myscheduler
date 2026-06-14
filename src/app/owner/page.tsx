@@ -26,6 +26,7 @@ export default function OwnerDashboardPage() {
           <BookingHistory />
         </div>
       </div>
+      </div>
       <ChatPanel context="owner" />
     </DashboardProvider>
   );
