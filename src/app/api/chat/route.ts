@@ -76,13 +76,12 @@ const OWNER_TOOLS = [
   },
   {
     name: "searchPeople",
-    description: "Search for other users by name or email to connect with them.",
+    description: "Search for other users by name or email to connect with them. If query is omitted or empty, it returns a general list of suggested users on the platform.",
     parameters: {
       type: "object" as const,
       properties: {
-        query: { type: "string" as const, description: "Name or email to search for" },
+        query: { type: "string" as const, description: "Optional name or email to search for" },
       },
-      required: ["query"],
     },
   },
   {
@@ -166,13 +165,12 @@ const VISITOR_TOOLS = [
   },
   {
     name: "searchPeople",
-    description: "Search for other users by name or email to connect with them.",
+    description: "Search for other users by name or email to connect with them. If query is omitted or empty, it returns a general list of suggested users on the platform.",
     parameters: {
       type: "object" as const,
       properties: {
-        query: { type: "string" as const, description: "Name or email to search for" },
+        query: { type: "string" as const, description: "Optional name or email to search for" },
       },
-      required: ["query"],
     },
   },
   {

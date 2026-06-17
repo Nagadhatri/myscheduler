@@ -210,11 +210,20 @@ export default function ChatPanel({
         const { data } = await query;
         responseObj = { bookings: data || [] };
       } else if (name === "searchPeople") {
-        const { data } = await supabase
+        const { data: { user } } = await supabase.auth.getUser();
+        let queryBuilder = supabase
           .from("profiles")
-          .select("id, display_name, email, occupation")
-          .or(`display_name.ilike.%${args.query}%,email.ilike.%${args.query}%`)
-          .limit(5);
+          .select("id, display_name, email, occupation");
+        
+        if (args.query) {
+          queryBuilder = queryBuilder.or(`display_name.ilike.%${args.query}%,email.ilike.%${args.query}%`);
+        }
+        
+        if (user) {
+          queryBuilder = queryBuilder.neq("id", user.id);
+        }
+        
+        const { data } = await queryBuilder.limit(10);
         responseObj = { users: data || [] };
       } else if (name === "getConnections") {
         let query = supabase.from("connections").select("*, requester:profiles!connections_requester_id_fkey(id, display_name, email, occupation), receiver:profiles!connections_receiver_id_fkey(id, display_name, email, occupation)");
