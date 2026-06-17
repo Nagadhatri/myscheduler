@@ -3,38 +3,38 @@
 import { useDashboard } from "./DashboardContext";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { parseISO, format } from "date-fns";
+import { CalendarDays } from "lucide-react";
 
 export default function CalendarView() {
   const { selectedDate, setSelectedDate, schedules } = useDashboard();
 
-  // Create an array of Date objects for dates that have schedules
-  const datesWithSchedules = schedules.map(s => {
-    // schedules.date is "YYYY-MM-DD", appending time to make it valid local date or just parseISO
-    // Because date-fns parseISO "2024-01-01" assumes UTC and might shift depending on local timezone
-    // It's safer to split and create local date to match what DayPicker uses
-    const [year, month, day] = s.date.split('-');
+  const datesWithSchedules = schedules.map((s) => {
+    const [year, month, day] = s.date.split("-");
     return new Date(Number(year), Number(month) - 1, Number(day));
   });
 
   return (
-    <Card className="flex-1 flex flex-col">
-      <CardHeader>
-        <CardTitle>Calendar</CardTitle>
+    <Card className="glass-card border-white/5">
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <CalendarDays className="w-4 h-4 text-primary" />
+          Calendar
+        </CardTitle>
       </CardHeader>
-      <CardContent className="flex-1 flex justify-center items-start">
+      <CardContent className="flex justify-center pb-4">
         <Calendar
           mode="single"
           selected={selectedDate}
           onSelect={(date) => {
             if (date) setSelectedDate(date);
           }}
-          className="rounded-md border shadow"
+          className="rounded-xl"
           modifiers={{
-            hasSchedule: datesWithSchedules
+            hasSchedule: datesWithSchedules,
           }}
           modifiersClassNames={{
-            hasSchedule: "font-bold text-primary underline underline-offset-4 decoration-2"
+            hasSchedule:
+              "font-bold text-[var(--status-upcoming)] bg-[var(--status-upcoming)]/10 rounded-full",
           }}
         />
       </CardContent>

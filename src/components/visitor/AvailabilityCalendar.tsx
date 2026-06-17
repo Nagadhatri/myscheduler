@@ -1,101 +1,210 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Schedule } from "@/types";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { format } from "date-fns";
+import { format, addDays, isBefore, startOfDay } from "date-fns";
 import BookingForm from "./BookingForm";
+import { Clock, CalendarDays, Sparkles } from "lucide-react";
+
+// Generate 1-hour slots from 5 AM to 11 PM
+function generateDaySlots(dateStr: string) {
+  const slots = [];
+  for (let hour = 5; hour < 23; hour++) {
+    const startH = String(hour).padStart(2, "0");
+    const endH = String(hour + 1).padStart(2, "0");
+    slots.push({
+      id: `${dateStr}-${startH}`,
+      date: dateStr,
+      start_time: `${startH}:00:00`,
+      end_time: `${endH}:00:00`,
+      title: `Available Slot`,
+      description: null,
+      category: "Meeting" as const,
+      status: "Upcoming" as const,
+      owner_id: "",
+      created_at: "",
+      updated_at: "",
+    });
+  }
+  return slots;
+}
 
 export default function AvailabilityCalendar() {
-  const [schedules, setSchedules] = useState<Schedule[]>([]);
+  const [bookedSlots, setBookedSlots] = useState<{ date: string; start_time: string }[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [loading, setLoading] = useState(true);
-  
+
   const supabase = createClient();
 
   useEffect(() => {
-    const fetchSchedules = async () => {
+    const fetchBookedSlots = async () => {
       setLoading(true);
-      // Fetch upcoming schedules
+      // Fetch all accepted bookings to know which slots are taken
       const { data, error } = await supabase
-        .from('schedules')
-        .select('*, bookings(booking_status)')
-        .eq('status', 'Upcoming');
-        
+        .from("bookings")
+        .select("schedule:schedules(date, start_time), booking_status")
+        .in("booking_status", ["Accepted", "Accepted with Remarks"]);
+
       if (!error && data) {
-        // Filter out schedules that have an Accepted booking
-        const available = data.filter((s: any) => {
-          const hasAccepted = s.bookings?.some((b: any) => b.booking_status === 'Accepted');
-          return !hasAccepted;
-        });
-        setSchedules(available as Schedule[]);
+        const booked = data
+          .filter((b: any) => b.schedule)
+          .map((b: any) => ({
+            date: b.schedule.date,
+            start_time: b.schedule.start_time,
+          }));
+        setBookedSlots(booked);
       }
+
+      // Also fetch schedules that are Cancelled or Completed
+      const { data: closedSchedules } = await supabase
+        .from("schedules")
+        .select("date, start_time")
+        .in("status", ["Cancelled", "Completed"]);
+
+      if (closedSchedules) {
+        setBookedSlots((prev) => [
+          ...prev,
+          ...closedSchedules.map((s: any) => ({
+            date: s.date,
+            start_time: s.start_time,
+          })),
+        ]);
+      }
+
       setLoading(false);
     };
 
-    fetchSchedules();
+    fetchBookedSlots();
   }, []);
 
-  const datesWithAvailability = schedules.map(s => {
-    const [year, month, day] = s.date.split('-');
-    return new Date(Number(year), Number(month) - 1, Number(day));
-  });
-
   const formattedDate = format(selectedDate, "yyyy-MM-dd");
-  const daySchedules = schedules.filter(s => s.date === formattedDate);
+  const today = startOfDay(new Date());
+  const isPastDate = isBefore(startOfDay(selectedDate), today);
+
+  // Generate all 18 hourly slots for the selected date
+  const allSlots = useMemo(() => generateDaySlots(formattedDate), [formattedDate]);
+
+  // Filter out booked slots
+  const availableSlots = useMemo(() => {
+    if (isPastDate) return [];
+    return allSlots.filter(
+      (slot) =>
+        !bookedSlots.some(
+          (b) => b.date === slot.date && b.start_time === slot.start_time
+        )
+    );
+  }, [allSlots, bookedSlots, isPastDate, formattedDate]);
+
+  // Next 30 days have availability indicator
+  const datesWithAvailability = useMemo(() => {
+    const dates: Date[] = [];
+    for (let i = 0; i < 30; i++) {
+      dates.push(addDays(today, i));
+    }
+    return dates;
+  }, []);
+
+  const formatTime = (t: string) => {
+    const hour = parseInt(t.slice(0, 2));
+    const ampm = hour >= 12 ? "PM" : "AM";
+    const h12 = hour % 12 || 12;
+    return `${h12}:00 ${ampm}`;
+  };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-      <Card>
-        <CardHeader>
-          <CardTitle>Select a Date</CardTitle>
-        </CardHeader>
-        <CardContent className="flex justify-center">
-          <Calendar
-            mode="single"
-            selected={selectedDate}
-            onSelect={(date) => {
-              if (date) setSelectedDate(date);
-            }}
-            className="rounded-md border shadow"
-            modifiers={{
-              available: datesWithAvailability
-            }}
-            modifiersClassNames={{
-              available: "font-bold text-primary bg-primary/10 rounded-full"
-            }}
-          />
-        </CardContent>
-      </Card>
+    <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+      {/* Calendar */}
+      <div className="lg:col-span-2">
+        <Card className="glass-card border-white/5">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <CalendarDays className="w-5 h-5 text-[var(--status-upcoming)]" />
+              Select a Date
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex justify-center pb-6">
+            <Calendar
+              mode="single"
+              selected={selectedDate}
+              onSelect={(date) => {
+                if (date) setSelectedDate(date);
+              }}
+              className="rounded-xl"
+              modifiers={{
+                available: datesWithAvailability,
+              }}
+              modifiersClassNames={{
+                available:
+                  "font-semibold text-[var(--status-upcoming)]",
+              }}
+              disabled={(date) => isBefore(startOfDay(date), today)}
+            />
+          </CardContent>
+        </Card>
+      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Available Slots - {format(selectedDate, "MMM d, yyyy")}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <p className="text-center text-muted-foreground">Loading...</p>
-          ) : daySchedules.length === 0 ? (
-            <p className="text-center text-muted-foreground py-10">No available slots on this date.</p>
-          ) : (
-            <div className="space-y-4">
-              {daySchedules.map(s => (
-                <div key={s.id} className="p-4 border rounded-lg flex items-center justify-between hover:bg-muted/50 transition-colors">
-                  <div>
-                    <h4 className="font-medium text-lg">{s.start_time.slice(0, 5)} - {s.end_time.slice(0, 5)}</h4>
-                    <p className="text-sm text-muted-foreground">{s.title}</p>
-                    {s.description && <p className="text-xs text-muted-foreground mt-1">{s.description}</p>}
+      {/* Slots */}
+      <div className="lg:col-span-3">
+        <Card className="glass-card border-white/5">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Clock className="w-5 h-5 text-[var(--status-completed)]" />
+              {format(selectedDate, "EEEE, MMMM d, yyyy")}
+            </CardTitle>
+            <p className="text-sm text-muted-foreground mt-1">
+              {isPastDate
+                ? "Cannot book past dates"
+                : `${availableSlots.length} slots available`}
+            </p>
+          </CardHeader>
+          <CardContent className="max-h-[500px] overflow-y-auto pr-2">
+            {loading ? (
+              <div className="flex items-center justify-center py-16">
+                <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : isPastDate ? (
+              <div className="text-center py-16 text-muted-foreground">
+                <CalendarDays className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                <p>This date has already passed.</p>
+              </div>
+            ) : availableSlots.length === 0 ? (
+              <div className="text-center py-16 text-muted-foreground">
+                <Sparkles className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                <p>All slots are booked for this date!</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {availableSlots.map((slot) => (
+                  <div
+                    key={slot.id}
+                    className="slot-card p-4 rounded-xl border border-white/5 bg-white/[0.02] flex items-center justify-between gap-3"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                        <Clock className="w-4 h-4 text-primary" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">
+                          {formatTime(slot.start_time)} – {formatTime(slot.end_time)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">1 hour</p>
+                      </div>
+                    </div>
+                    <BookingForm
+                      date={formattedDate}
+                      startTime={slot.start_time}
+                      endTime={slot.end_time}
+                    />
                   </div>
-                  <BookingForm schedule={s} />
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

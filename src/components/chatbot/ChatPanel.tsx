@@ -4,42 +4,50 @@ import { useState, useRef, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { format } from "date-fns";
-import { MessageCircle, X, Send, Bot, User } from "lucide-react";
+import { MessageCircle, X, Send, Bot, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
-type Role = 'user' | 'model' | 'function';
+type Role = "user" | "model" | "function";
 type Message = {
   role: Role;
   text?: string;
   functionCall?: { name: string; args: any };
-  name?: string; // for function response
-  response?: any; // for function response
+  name?: string;
+  response?: any;
 };
 
-export default function ChatPanel({ context }: { context: "owner" | "visitor" }) {
+export default function ChatPanel({
+  context,
+}: {
+  context: "owner" | "visitor";
+}) {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
-  const [pendingCall, setPendingCall] = useState<{name: string, args: any} | null>(null);
+  const [pendingCall, setPendingCall] = useState<{
+    name: string;
+    args: any;
+  } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-
   const supabase = createClient();
 
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollIntoView({ behavior: "smooth" });
     }
-  }, [messages, pendingCall]);
+  }, [messages, pendingCall, loading]);
 
-  const sendMessage = async (newInput: string, currentHistory: Message[] = messages) => {
-    if (!newInput.trim() && !pendingCall && currentHistory[currentHistory.length-1]?.role !== 'function') return;
+  const sendMessage = async (
+    newInput: string,
+    currentHistory: Message[] = messages
+  ) => {
+    if (!newInput.trim() && currentHistory[currentHistory.length - 1]?.role !== "function") return;
 
     let historyToPass = [...currentHistory];
-    
+
     if (newInput) {
       historyToPass.push({ role: "user", text: newInput });
       setMessages(historyToPass);
@@ -49,29 +57,52 @@ export default function ChatPanel({ context }: { context: "owner" | "visitor" })
     setLoading(true);
 
     try {
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const lastMsg = historyToPass[historyToPass.length - 1];
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           history: historyToPass.slice(0, -1),
-          message: historyToPass[historyToPass.length - 1].text || "",
-          context
-        })
+          message: lastMsg?.text || "",
+          context,
+        }),
       });
 
       const data = await res.json();
-      
+
+      if (data.error) {
+        setMessages((prev) => [
+          ...prev,
+          { role: "model", text: `⚠️ ${data.error}` },
+        ]);
+        setLoading(false);
+        return;
+      }
+
       if (data.type === "text") {
-        setMessages(prev => [...prev, { role: "model", text: data.text }]);
+        setMessages((prev) => [...prev, { role: "model", text: data.text }]);
       } else if (data.type === "function_call") {
         const call = data.functionCall;
-        setMessages(prev => [...prev, { role: "model", functionCall: call }]);
-        
-        // Handle auto-reads
-        if (["getTodaySchedule", "getAvailableSlots", "queryBookings", "checkBookingStatus"].includes(call.name)) {
-          await handleFunctionExecution(call.name, call.args, [...historyToPass, { role: "model", functionCall: call }]);
+        setMessages((prev) => [
+          ...prev,
+          { role: "model", functionCall: call },
+        ]);
+
+        // Auto-execute read operations
+        if (
+          [
+            "getTodaySchedule",
+            "getAvailableSlots",
+            "queryBookings",
+            "checkBookingStatus",
+          ].includes(call.name)
+        ) {
+          await handleFunctionExecution(call.name, call.args, [
+            ...historyToPass,
+            { role: "model", functionCall: call },
+          ]);
         } else {
-          // Write operation needs confirmation
+          // Write ops need confirmation
           setPendingCall(call);
         }
       }
@@ -82,42 +113,109 @@ export default function ChatPanel({ context }: { context: "owner" | "visitor" })
     }
   };
 
-  const handleFunctionExecution = async (name: string, args: any, currentHistory: Message[]) => {
+  const handleFunctionExecution = async (
+    name: string,
+    args: any,
+    currentHistory: Message[]
+  ) => {
     let responseObj: any = {};
-    
+
     try {
       if (name === "getTodaySchedule") {
         const today = format(new Date(), "yyyy-MM-dd");
-        const { data } = await supabase.from('schedules').select('*').eq('date', today);
-        responseObj = { schedules: data };
+        const { data } = await supabase
+          .from("schedules")
+          .select("*")
+          .eq("date", today);
+        responseObj = { schedules: data || [] };
       } else if (name === "getAvailableSlots") {
-        const { data } = await supabase.from('schedules').select('*, bookings(booking_status)').eq('date', args.date).eq('status', 'Upcoming');
-        const available = data?.filter((s: any) => !s.bookings?.some((b: any) => b.booking_status === 'Accepted'));
-        responseObj = { available_slots: available };
+        // Return the auto-generated slot info
+        const { data } = await supabase
+          .from("schedules")
+          .select("*, bookings(booking_status)")
+          .eq("date", args.date)
+          .eq("status", "Upcoming");
+        const booked = (data || [])
+          .filter((s: any) =>
+            s.bookings?.some((b: any) =>
+              ["Accepted", "Accepted with Remarks"].includes(b.booking_status)
+            )
+          )
+          .map((s: any) => s.start_time);
+        // Generate all slots and filter
+        const allSlots = [];
+        for (let h = 5; h < 23; h++) {
+          const st = `${String(h).padStart(2, "0")}:00:00`;
+          if (!booked.includes(st)) {
+            allSlots.push({
+              time: `${String(h).padStart(2, "0")}:00 - ${String(h + 1).padStart(2, "0")}:00`,
+              date: args.date,
+              start_time: st,
+            });
+          }
+        }
+        responseObj = { available_slots: allSlots, date: args.date };
       } else if (name === "checkBookingStatus") {
-        const { data } = await supabase.from('bookings').select('*, schedule:schedules(title, date, start_time, end_time)').eq('visitor_email', args.email);
-        responseObj = { bookings: data };
+        const { data } = await supabase
+          .from("bookings")
+          .select("*, schedule:schedules(title, date, start_time, end_time)")
+          .eq("visitor_email", args.email);
+        responseObj = { bookings: data || [] };
       } else if (name === "queryBookings") {
-        const { data } = await supabase.from('bookings').select('*, schedule:schedules(*)').eq('booking_status', 'Pending');
-        responseObj = { pending_bookings: data };
+        const { data } = await supabase
+          .from("bookings")
+          .select("*, schedule:schedules(*)")
+          .eq("booking_status", "Pending");
+        responseObj = { pending_bookings: data || [] };
       } else if (name === "addSlot") {
         const { data: userData } = await supabase.auth.getUser();
         if (!userData.user) throw new Error("Not authenticated");
-        const { error } = await supabase.from('schedules').insert({
-          title: args.title, date: args.date, start_time: args.start_time, end_time: args.end_time, category: args.category, owner_id: userData.user.id
+        const { error } = await supabase.from("schedules").insert({
+          title: args.title,
+          date: args.date,
+          start_time: args.start_time + ":00",
+          end_time: args.end_time + ":00",
+          category: args.category,
+          owner_id: userData.user.id,
         });
         if (error) throw error;
-        responseObj = { success: true, message: "Slot added." };
+        responseObj = { success: true, message: "Slot added successfully." };
       } else if (name === "deleteSlot") {
-        const { error } = await supabase.from('schedules').delete().eq('id', args.id);
+        const { error } = await supabase
+          .from("schedules")
+          .delete()
+          .eq("id", args.id);
         if (error) throw error;
         responseObj = { success: true, message: "Slot deleted." };
       } else if (name === "bookAppointment") {
-        const { error } = await supabase.from('bookings').insert({
-          schedule_id: args.schedule_id, visitor_name: args.name, visitor_email: args.email, description: args.description, booking_status: 'Pending'
-        });
-        if (error) throw error;
-        responseObj = { success: true, message: "Booking requested." };
+        // Create schedule + booking
+        const { data: scheduleData, error: scheduleError } = await supabase
+          .from("schedules")
+          .insert({
+            title: `Booking by ${args.name}`,
+            category: "Meeting",
+            date: args.date,
+            start_time: args.start_time,
+            end_time: args.end_time,
+            status: "Upcoming",
+          })
+          .select("id")
+          .single();
+        if (scheduleError) throw scheduleError;
+        const { error: bookingError } = await supabase
+          .from("bookings")
+          .insert({
+            schedule_id: scheduleData.id,
+            visitor_name: args.name,
+            visitor_email: args.email,
+            description: args.description,
+            booking_status: "Pending",
+          });
+        if (bookingError) throw bookingError;
+        responseObj = {
+          success: true,
+          message: "Booking request submitted successfully!",
+        };
       }
     } catch (err: any) {
       responseObj = { success: false, error: err.message };
@@ -126,8 +224,8 @@ export default function ChatPanel({ context }: { context: "owner" | "visitor" })
     const funcMsg: Message = { role: "function", name, response: responseObj };
     const newHistory = [...currentHistory, funcMsg];
     setMessages(newHistory);
-    
-    // Automatically send function response back to LLM to get final text
+
+    // Send function response back to LLM
     sendMessage("", newHistory);
   };
 
@@ -137,7 +235,11 @@ export default function ChatPanel({ context }: { context: "owner" | "visitor" })
     setPendingCall(null);
 
     if (!confirmed) {
-      const funcMsg: Message = { role: "function", name: call.name, response: { success: false, error: "User cancelled the operation." } };
+      const funcMsg: Message = {
+        role: "function",
+        name: call.name,
+        response: { success: false, error: "User cancelled." },
+      };
       const newHistory = [...messages, funcMsg];
       setMessages(newHistory);
       sendMessage("", newHistory);
@@ -149,81 +251,165 @@ export default function ChatPanel({ context }: { context: "owner" | "visitor" })
 
   return (
     <>
+      {/* Floating button */}
       {!isOpen && (
-        <Button
+        <button
           onClick={() => setIsOpen(true)}
-          className="fixed bottom-6 right-6 rounded-full w-14 h-14 shadow-lg flex items-center justify-center z-50"
+          className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-primary flex items-center justify-center shadow-xl animate-pulse-glow cursor-pointer transition-transform hover:scale-110"
         >
-          <MessageCircle className="w-6 h-6 text-white" />
-        </Button>
+          <MessageCircle className="w-6 h-6 text-primary-foreground" />
+        </button>
       )}
 
+      {/* Chat window */}
       {isOpen && (
-        <Card className="fixed bottom-6 right-6 w-80 md:w-96 h-[500px] flex flex-col shadow-2xl z-50 border-primary/20">
-          <CardHeader className="bg-primary text-primary-foreground py-3 flex flex-row items-center justify-between rounded-t-lg">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <Bot className="w-5 h-5" />
-              AI Assistant
-            </CardTitle>
-            <Button variant="ghost" size="icon" className="h-6 w-6 text-white hover:bg-primary/80" onClick={() => setIsOpen(false)}>
-              <X className="w-4 h-4" />
-            </Button>
-          </CardHeader>
-          <CardContent className="flex-1 flex flex-col p-0 overflow-hidden">
-            <ScrollArea className="flex-1 p-4 bg-muted/10">
-              {messages.map((msg, i) => {
-                if (msg.role === 'function') return null; // Hide raw function responses
-                if (msg.role === 'model' && msg.functionCall && msg.functionCall.name !== pendingCall?.name) {
-                  return null; // Hide executed tool calls
-                }
-                
-                return (
-                  <div key={i} className={`flex mb-4 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[80%] p-3 rounded-lg text-sm ${msg.role === 'user' ? 'bg-primary text-primary-foreground rounded-tr-none' : 'bg-card border rounded-tl-none'}`}>
-                      {msg.text}
-                    </div>
-                  </div>
-                );
-              })}
-              
-              {pendingCall && (
-                <div className="flex mb-4 justify-start">
-                  <div className="max-w-[80%] p-3 rounded-lg text-sm bg-card border border-primary rounded-tl-none space-y-2">
-                    <p className="font-semibold text-primary">Confirmation Required</p>
-                    <p>The AI wants to execute: <strong>{pendingCall.name}</strong></p>
-                    <pre className="text-xs bg-muted p-2 rounded overflow-x-auto">{JSON.stringify(pendingCall.args, null, 2)}</pre>
-                    <div className="flex gap-2 pt-2">
-                      <Button size="sm" onClick={() => confirmCall(true)}>Confirm</Button>
-                      <Button size="sm" variant="outline" onClick={() => confirmCall(false)}>Cancel</Button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {loading && !pendingCall && (
-                <div className="flex mb-4 justify-start">
-                  <div className="max-w-[80%] p-3 rounded-lg text-sm bg-card border rounded-tl-none italic text-muted-foreground">
-                    Thinking...
-                  </div>
-                </div>
-              )}
-              <div ref={scrollRef} />
-            </ScrollArea>
-            <div className="p-3 border-t bg-card">
-              <form onSubmit={(e) => { e.preventDefault(); sendMessage(input); }} className="flex gap-2">
-                <Input
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  placeholder="Ask me anything..."
-                  disabled={loading || !!pendingCall}
-                />
-                <Button type="submit" size="icon" disabled={!input.trim() || loading || !!pendingCall}>
-                  <Send className="w-4 h-4" />
-                </Button>
-              </form>
+        <div className="fixed bottom-6 right-6 w-80 md:w-96 h-[520px] flex flex-col z-50 rounded-2xl overflow-hidden shadow-2xl border border-white/10 bg-card/95 backdrop-blur-xl">
+          {/* Header */}
+          <div className="bg-primary px-4 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
+                <Sparkles className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-white">
+                  AI Assistant
+                </p>
+                <p className="text-[10px] text-white/70">Powered by Gemini</p>
+              </div>
             </div>
-          </CardContent>
-        </Card>
+            <button
+              className="w-7 h-7 rounded-lg hover:bg-white/10 flex items-center justify-center transition-colors cursor-pointer"
+              onClick={() => setIsOpen(false)}
+            >
+              <X className="w-4 h-4 text-white" />
+            </button>
+          </div>
+
+          {/* Messages */}
+          <ScrollArea className="flex-1 px-4 py-3">
+            {messages.length === 0 && (
+              <div className="text-center py-10">
+                <Bot className="w-10 h-10 mx-auto mb-3 text-primary/30" />
+                <p className="text-sm text-muted-foreground">
+                  {context === "visitor"
+                    ? 'Ask me to book a slot!\nTry: "Book a meeting tomorrow at 10 AM"'
+                    : 'Ask me about your schedule!\nTry: "What\'s on my calendar today?"'}
+                </p>
+              </div>
+            )}
+
+            {messages.map((msg, i) => {
+              if (msg.role === "function") return null;
+              if (
+                msg.role === "model" &&
+                msg.functionCall &&
+                msg.functionCall.name !== pendingCall?.name
+              )
+                return null;
+
+              return (
+                <div
+                  key={i}
+                  className={`flex mb-3 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+                >
+                  <div
+                    className={`max-w-[85%] px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed ${
+                      msg.role === "user"
+                        ? "bg-primary text-primary-foreground rounded-br-md"
+                        : "bg-white/5 border border-white/5 rounded-bl-md"
+                    }`}
+                  >
+                    {msg.text}
+                  </div>
+                </div>
+              );
+            })}
+
+            {pendingCall && (
+              <div className="flex mb-3 justify-start">
+                <div className="max-w-[85%] px-3.5 py-3 rounded-2xl rounded-bl-md bg-primary/5 border border-primary/20 space-y-2 text-sm">
+                  <p className="font-semibold text-primary text-xs">
+                    Confirm Action
+                  </p>
+                  <p className="text-xs">
+                    {pendingCall.name === "bookAppointment"
+                      ? `Book slot for ${pendingCall.args.name} on ${pendingCall.args.date}`
+                      : pendingCall.name === "addSlot"
+                        ? `Add "${pendingCall.args.title}" on ${pendingCall.args.date}`
+                        : `Execute: ${pendingCall.name}`}
+                  </p>
+                  <div className="flex gap-2 pt-1">
+                    <Button
+                      size="sm"
+                      className="h-7 text-xs glow-primary"
+                      onClick={() => confirmCall(true)}
+                    >
+                      Confirm
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs border-white/10"
+                      onClick={() => confirmCall(false)}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {loading && !pendingCall && (
+              <div className="flex mb-3 justify-start">
+                <div className="px-4 py-2.5 rounded-2xl rounded-bl-md bg-white/5 border border-white/5">
+                  <div className="flex gap-1.5">
+                    <div className="w-2 h-2 rounded-full bg-primary/40 animate-bounce" />
+                    <div
+                      className="w-2 h-2 rounded-full bg-primary/40 animate-bounce"
+                      style={{ animationDelay: "0.15s" }}
+                    />
+                    <div
+                      className="w-2 h-2 rounded-full bg-primary/40 animate-bounce"
+                      style={{ animationDelay: "0.3s" }}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+            <div ref={scrollRef} />
+          </ScrollArea>
+
+          {/* Input */}
+          <div className="p-3 border-t border-white/5 bg-card">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                sendMessage(input);
+              }}
+              className="flex gap-2"
+            >
+              <Input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder={
+                  context === "visitor"
+                    ? "Book a slot, check status..."
+                    : "Manage schedule, view bookings..."
+                }
+                disabled={loading || !!pendingCall}
+                className="bg-white/5 border-white/5 text-sm"
+              />
+              <Button
+                type="submit"
+                size="icon"
+                disabled={!input.trim() || loading || !!pendingCall}
+                className="glow-primary flex-shrink-0"
+              >
+                <Send className="w-4 h-4" />
+              </Button>
+            </form>
+          </div>
+        </div>
       )}
     </>
   );
