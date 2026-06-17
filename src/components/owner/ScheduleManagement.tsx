@@ -129,8 +129,8 @@ export default function ScheduleManagement() {
           setIsDialogOpen(open);
           if (!open) resetForm();
         }}>
-          <DialogTrigger asChild>
-            <Button size="sm">Add Slot</Button>
+          <DialogTrigger render={<Button size="sm" />}>
+            Add Slot
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>

@@ -55,8 +55,8 @@ export default function BookingForm({ schedule }: { schedule: Schedule }) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button>Book Slot</Button>
+      <DialogTrigger render={<Button>Book Slot</Button>}>
+        Book Slot
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>

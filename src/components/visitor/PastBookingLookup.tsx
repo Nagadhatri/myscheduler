@@ -64,11 +64,13 @@ export default function PastBookingLookup() {
         setSearched(false);
       }
     }}>
-      <DialogTrigger asChild>
+      <DialogTrigger render={
         <Button variant="outline" className="gap-2">
           <Search className="w-4 h-4" />
           Lookup Past Bookings
         </Button>
+      }>
+        Lookup Past Bookings
       </DialogTrigger>
       <DialogContent className="max-w-xl">
         <DialogHeader>
