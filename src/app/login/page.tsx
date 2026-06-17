@@ -17,6 +17,7 @@ import {
 import { toast } from "sonner";
 import { Lock, Mail, LayoutDashboard } from "lucide-react";
 import Link from "next/link";
+import ChatPanel from "@/components/chatbot/ChatPanel";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -105,6 +106,7 @@ export default function LoginPage() {
           </CardFooter>
         </form>
       </Card>
+      <ChatPanel context="visitor" />
     </div>
   );
 }

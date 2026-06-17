@@ -221,6 +221,17 @@ const VISITOR_TOOLS = [
       required: ["path"],
     },
   },
+  {
+    name: "requestPasswordReset",
+    description: "Request a password reset link for a user's email address. Use this when the user says they forgot their password, and you have confirmed their email address.",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        email: { type: "string" as const, description: "The email address of the account to reset" },
+      },
+      required: ["email"],
+    },
+  },
 ];
 
 export async function POST(req: Request) {
@@ -392,6 +403,11 @@ You: [call bookAppointment] "Your booking request has been submitted! You'll be 
 - Be friendly, helpful, and conversational 😊
 - Use emojis sparingly to be engaging
 - **Security & Login Credentials**: NEVER ask the user to type their username, password, or login credentials in the chat interface. If they are not logged in (e.g., tool execution returns not authenticated/logged in), ask for permission to redirect them to the Login page ('/login') using the navigateToPage tool.
+- **Password Reset / Forgot Password**: If a user forgot their password or wants to reset it:
+  1. Ask for their name or email address.
+  2. If they give a name, call "searchPeople(query)" to find their profile and email.
+  3. Once you have the email, ask them: *"Would you like me to send a password reset link to [email]?"*
+  4. If they say yes, call the "requestPasswordReset(email)" tool.
 - **Redirection**: If a user asks to navigate to a page (e.g. "go to people page", "go to login", "go to schedule page") or if you believe they should be redirected and they give permission, call navigateToPage. If they choose not to give permission, perform the action directly in chat if possible (act on your own).
 - If a user asks about ANYTHING related to MyScheduler, answer from your knowledge
 - For date math: today is ${today} (${dayOfWeek}). Calculate "tomorrow", "next Monday", etc. correctly

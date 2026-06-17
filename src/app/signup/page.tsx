@@ -17,6 +17,7 @@ import {
 import { toast } from "sonner";
 import { UserPlus, Mail, Lock, User } from "lucide-react";
 import Link from "next/link";
+import ChatPanel from "@/components/chatbot/ChatPanel";
 
 export default function SignupPage() {
   const [name, setName] = useState("");
@@ -144,6 +145,7 @@ export default function SignupPage() {
           </CardFooter>
         </form>
       </Card>
+      <ChatPanel context="visitor" />
     </div>
   );
 }

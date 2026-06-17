@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Lock, Key } from "lucide-react";
+import ChatPanel from "@/components/chatbot/ChatPanel";
 
 export default function ResetPasswordPage() {
   const [password, setPassword] = useState("");
@@ -137,6 +138,7 @@ export default function ResetPasswordPage() {
           </form>
         )}
       </Card>
+      <ChatPanel context="visitor" />
     </div>
   );
 }

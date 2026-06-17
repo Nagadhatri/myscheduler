@@ -16,6 +16,7 @@ import {
 import { toast } from "sonner";
 import { Mail, LayoutDashboard, ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import ChatPanel from "@/components/chatbot/ChatPanel";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -107,6 +108,7 @@ export default function ForgotPasswordPage() {
           </form>
         )}
       </Card>
+      <ChatPanel context="visitor" />
     </div>
   );
 }

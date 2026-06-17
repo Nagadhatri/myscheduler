@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { CalendarDays, Users, Clock, Sparkles, ArrowRight, Shield } from "lucide-react";
+import ChatPanel from "@/components/chatbot/ChatPanel";
 
 export default function LandingPage() {
   return (
@@ -106,6 +107,7 @@ export default function LandingPage() {
       <footer className="relative z-10 border-t border-white/5 py-8 text-center text-sm text-muted-foreground">
         Built with ❤️ using Next.js, Supabase & Gemini AI
       </footer>
+      <ChatPanel context="visitor" />
     </div>
   );
 }

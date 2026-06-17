@@ -211,17 +211,14 @@ export default function ChatPanel({
         responseObj = { bookings: data || [] };
       } else if (name === "searchPeople") {
         const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error("Not authenticated");
         
         if (args.query) {
-          const { data } = await supabase
-            .from("profiles")
-            .select("id, display_name, email, occupation")
-            .or(`display_name.ilike.%${args.query}%,email.ilike.%${args.query}%`)
-            .neq("id", user.id)
-            .limit(10);
-          responseObj = { users: data || [] };
+          const res = await fetch(`/api/search-people?query=${encodeURIComponent(args.query)}`);
+          const data = await res.json();
+          if (data.error) throw new Error(data.error);
+          responseObj = { users: data.users || [] };
         } else {
+          if (!user) throw new Error("Not authenticated");
           const { getPeopleYouMayKnow } = await import("@/lib/recommendations");
           const recommendations = await getPeopleYouMayKnow(supabase, user.id, user.email || "");
           responseObj = { 
@@ -362,6 +359,13 @@ export default function ChatPanel({
           .eq("id", args.booking_id);
         if (error) throw error;
         responseObj = { success: true, message: `Booking marked as ${args.action}` };
+      } else if (name === "requestPasswordReset") {
+        const resetRedirect = `${window.location.origin}/reset-password`;
+        const { error } = await supabase.auth.resetPasswordForEmail(args.email, {
+          redirectTo: resetRedirect,
+        });
+        if (error) throw error;
+        responseObj = { success: true, message: `Password reset link has been sent to ${args.email}.` };
       }
     } catch (err: any) {
       responseObj = { success: false, error: err.message };
@@ -488,7 +492,9 @@ export default function ChatPanel({
                         ? `Send connection request to ${pendingCall.args.receiver_id}`
                       : pendingCall.name === "respondToBooking"
                         ? `Respond to booking: ${pendingCall.args.action}`
-                        : `Execute: ${pendingCall.name}`}
+                        : pendingCall.name === "requestPasswordReset"
+                          ? `Send a password reset link to ${pendingCall.args.email}`
+                          : `Execute: ${pendingCall.name}`}
                   </p>
                   <div className="flex gap-2 pt-1">
                     <Button
