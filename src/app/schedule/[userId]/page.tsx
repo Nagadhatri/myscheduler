@@ -244,7 +244,7 @@ export default function UserSchedulePage() {
         </div>
         <div>
           <h2 className="text-lg font-bold">{profile?.display_name}&apos;s Schedule</h2>
-          <p className="text-xs text-muted-foreground">{profile?.email}</p>
+          <p className="text-xs text-muted-foreground">{profile?.occupation ? `${profile.occupation} • ${profile.email}` : profile?.email}</p>
         </div>
       </div>
 

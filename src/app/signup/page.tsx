@@ -22,6 +22,7 @@ export default function SignupPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [occupation, setOccupation] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const supabase = createClient();
@@ -38,7 +39,7 @@ export default function SignupPage() {
       email,
       password,
       options: {
-        data: { display_name: name },
+        data: { display_name: name, occupation },
       },
     });
 
@@ -112,6 +113,20 @@ export default function SignupPage() {
                   placeholder="Min 6 characters"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="pl-10 bg-white/5 border-white/10"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="occupation" className="text-sm">Occupation</Label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  id="occupation"
+                  placeholder="e.g. Software Engineer, Designer"
+                  value={occupation}
+                  onChange={(e) => setOccupation(e.target.value)}
                   required
                   className="pl-10 bg-white/5 border-white/10"
                 />

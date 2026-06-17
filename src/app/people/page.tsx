@@ -163,7 +163,7 @@ export default function PeoplePage() {
                   >
                     <div>
                       <p className="font-medium text-sm">{profile.display_name}</p>
-                      <p className="text-xs text-muted-foreground">{profile.email}</p>
+                      <p className="text-xs text-muted-foreground">{profile.occupation ? `${profile.occupation} • ${profile.email}` : profile.email}</p>
                     </div>
                     {existing ? (
                       <Badge className="bg-white/5 border border-white/10 text-xs">
@@ -215,7 +215,7 @@ export default function PeoplePage() {
                       <div key={conn.id} className="flex items-center justify-between p-3 rounded-xl border border-white/5 bg-white/[0.02]">
                         <div>
                           <p className="font-medium text-sm">{profile?.display_name}</p>
-                          <p className="text-xs text-muted-foreground">{profile?.email}</p>
+                          <p className="text-xs text-muted-foreground">{profile?.occupation ? `${profile.occupation} • ${profile.email}` : profile?.email}</p>
                         </div>
                         <div className="flex gap-1.5">
                           <Button size="sm" className="h-7 text-xs gap-1 glow-primary" onClick={() => handleConnectionAction(conn.id, "accepted")}>
@@ -254,7 +254,7 @@ export default function PeoplePage() {
                       <div key={conn.id} className="flex items-center justify-between p-3 rounded-xl border border-white/5 bg-white/[0.02]">
                         <div>
                           <p className="font-medium text-sm">{profile?.display_name}</p>
-                          <p className="text-xs text-muted-foreground">{profile?.email}</p>
+                          <p className="text-xs text-muted-foreground">{profile?.occupation ? `${profile.occupation} • ${profile.email}` : profile?.email}</p>
                         </div>
                         <Badge className="bg-[var(--status-upcoming)]/15 text-[var(--status-upcoming)] border border-[var(--status-upcoming)]/20 text-xs">
                           Pending
@@ -292,7 +292,7 @@ export default function PeoplePage() {
                   <div key={conn.id} className="slot-card p-4 rounded-xl border border-white/5 bg-white/[0.02] space-y-3">
                     <div>
                       <p className="font-semibold text-sm">{profile?.display_name}</p>
-                      <p className="text-xs text-muted-foreground">{profile?.email}</p>
+                      <p className="text-xs text-muted-foreground">{profile?.occupation ? `${profile.occupation} • ${profile.email}` : profile?.email}</p>
                     </div>
                     <div className="flex gap-2">
                       <Link href={`/schedule/${profile?.id}`} className="flex-1">

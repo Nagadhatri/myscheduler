@@ -167,6 +167,20 @@ export default function ChatPanel({
           .select("*, schedule:schedules(*)")
           .eq("booking_status", "Pending");
         responseObj = { pending_bookings: data || [] };
+      } else if (name === "searchPeople") {
+        const { data } = await supabase
+          .from("profiles")
+          .select("id, display_name, email, occupation")
+          .or(`display_name.ilike.%${args.query}%,email.ilike.%${args.query}%`)
+          .limit(5);
+        responseObj = { users: data || [] };
+      } else if (name === "getConnections") {
+        let query = supabase.from("connections").select("*, requester:profiles!connections_requester_id_fkey(id, display_name, email, occupation), receiver:profiles!connections_receiver_id_fkey(id, display_name, email, occupation)");
+        if (args.status) {
+          query = query.eq("status", args.status);
+        }
+        const { data } = await query;
+        responseObj = { connections: data || [] };
       } else if (name === "addSlot") {
         const { data: userData } = await supabase.auth.getUser();
         if (!userData.user) throw new Error("Not authenticated");
@@ -216,6 +230,45 @@ export default function ChatPanel({
           success: true,
           message: "Booking request submitted successfully!",
         };
+      } else if (name === "sendConnectionRequest") {
+        const { data: userData } = await supabase.auth.getUser();
+        if (!userData.user) throw new Error("Not authenticated");
+        const { error } = await supabase.from("connections").insert({
+          requester_id: userData.user.id,
+          receiver_id: args.receiver_id,
+        });
+        if (error) throw error;
+        responseObj = { success: true, message: "Connection request sent!" };
+      } else if (name === "rescheduleSlot") {
+        // 1. Update old slot to Rescheduled
+        const { error: updateError } = await supabase
+          .from("schedules")
+          .update({ status: "Rescheduled" })
+          .eq("id", args.slot_id);
+        if (updateError) throw updateError;
+        
+        // 2. Fetch old slot to copy details
+        const { data: oldSlot } = await supabase.from("schedules").select("*").eq("id", args.slot_id).single();
+        
+        // 3. Insert new slot
+        const { error: insertError } = await supabase.from("schedules").insert({
+          title: oldSlot.title,
+          category: oldSlot.category,
+          date: args.new_date,
+          start_time: args.new_start_time + ":00",
+          end_time: args.new_end_time + ":00",
+          owner_id: oldSlot.owner_id,
+          status: "Upcoming",
+        });
+        if (insertError) throw insertError;
+        responseObj = { success: true, message: "Slot rescheduled successfully!" };
+      } else if (name === "respondToBooking") {
+        const { error } = await supabase
+          .from("bookings")
+          .update({ booking_status: args.action, remarks: args.remarks })
+          .eq("id", args.booking_id);
+        if (error) throw error;
+        responseObj = { success: true, message: `Booking marked as ${args.action}` };
       }
     } catch (err: any) {
       responseObj = { success: false, error: err.message };
@@ -336,6 +389,12 @@ export default function ChatPanel({
                       ? `Book slot for ${pendingCall.args.name} on ${pendingCall.args.date}`
                       : pendingCall.name === "addSlot"
                         ? `Add "${pendingCall.args.title}" on ${pendingCall.args.date}`
+                      : pendingCall.name === "rescheduleSlot"
+                        ? `Reschedule slot to ${pendingCall.args.new_date} at ${pendingCall.args.new_start_time}`
+                      : pendingCall.name === "sendConnectionRequest"
+                        ? `Send connection request to ${pendingCall.args.receiver_id}`
+                      : pendingCall.name === "respondToBooking"
+                        ? `Respond to booking: ${pendingCall.args.action}`
                         : `Execute: ${pendingCall.name}`}
                   </p>
                   <div className="flex gap-2 pt-1">
