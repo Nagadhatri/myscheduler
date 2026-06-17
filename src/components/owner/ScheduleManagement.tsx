@@ -26,7 +26,7 @@ import {
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Schedule, ScheduleCategory, ScheduleStatus } from "@/types";
-import { Trash2, Edit, Plus, Clock, ListChecks } from "lucide-react";
+import { Trash2, Edit, Plus, Clock, ListChecks, RefreshCw } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 const getStatusColor = (status: ScheduleStatus) => {
@@ -70,6 +70,11 @@ export default function ScheduleManagement() {
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [status, setStatus] = useState<ScheduleStatus>("Upcoming");
+  const [rescheduleId, setRescheduleId] = useState<string | null>(null);
+  const [rescheduleDate, setRescheduleDate] = useState("");
+  const [rescheduleStart, setRescheduleStart] = useState("");
+  const [rescheduleEnd, setRescheduleEnd] = useState("");
+  const [rescheduleDialogOpen, setRescheduleDialogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const supabase = createClient();
@@ -106,6 +111,41 @@ export default function ScheduleManagement() {
       toast.error(error.message);
     } else {
       toast.success("Schedule deleted");
+      fetchSchedules();
+    }
+  };
+
+  const handleReschedule = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!rescheduleId) return;
+    setLoading(true);
+
+    // Mark old slot as Rescheduled
+    await supabase.from("schedules").update({ status: "Rescheduled" }).eq("id", rescheduleId);
+
+    // Get old slot info for context
+    const oldSlot = schedules.find(s => s.id === rescheduleId);
+
+    // Create new slot
+    const { data: userData } = await supabase.auth.getUser();
+    const { error } = await supabase.from("schedules").insert({
+      title: oldSlot?.title || title,
+      category: oldSlot?.category || "Meeting",
+      description: oldSlot?.description || "",
+      date: rescheduleDate,
+      start_time: rescheduleStart + ":00",
+      end_time: rescheduleEnd + ":00",
+      status: "Upcoming",
+      owner_id: userData.user?.id,
+    });
+
+    setLoading(false);
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success("Meeting rescheduled! ✅");
+      setRescheduleDialogOpen(false);
+      setRescheduleId(null);
       fetchSchedules();
     }
   };
@@ -302,6 +342,7 @@ export default function ScheduleManagement() {
                         variant="ghost"
                         size="icon"
                         className="h-7 w-7 hover:bg-white/5"
+                        title="Edit"
                         onClick={() => handleEdit(s)}
                       >
                         <Edit className="h-3.5 w-3.5" />
@@ -309,7 +350,23 @@ export default function ScheduleManagement() {
                       <Button
                         variant="ghost"
                         size="icon"
+                        className="h-7 w-7 hover:bg-orange-500/10"
+                        title="Reschedule"
+                        onClick={() => {
+                          setRescheduleId(s.id);
+                          setRescheduleDate(s.date);
+                          setRescheduleStart(s.start_time.slice(0,5));
+                          setRescheduleEnd(s.end_time.slice(0,5));
+                          setRescheduleDialogOpen(true);
+                        }}
+                      >
+                        <RefreshCw className="h-3.5 w-3.5 text-[var(--status-rescheduled)]" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
                         className="h-7 w-7 hover:bg-red-500/10"
+                        title="Delete"
                         onClick={() => handleDelete(s.id)}
                       >
                         <Trash2 className="h-3.5 w-3.5 text-destructive" />
@@ -332,6 +389,39 @@ export default function ScheduleManagement() {
           )}
         </ScrollArea>
       </CardContent>
+
+      {/* Reschedule Dialog */}
+      <Dialog open={rescheduleDialogOpen} onOpenChange={(open) => { if (!open) { setRescheduleDialogOpen(false); setRescheduleId(null); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <RefreshCw className="w-4 h-4 text-[var(--status-rescheduled)]" />
+              Reschedule Meeting
+            </DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleReschedule} className="space-y-4">
+            <div className="space-y-2">
+              <Label>New Date</Label>
+              <Input type="date" required value={rescheduleDate} onChange={(e) => setRescheduleDate(e.target.value)} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>New Start Time</Label>
+                <Input type="time" required value={rescheduleStart} onChange={(e) => setRescheduleStart(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>New End Time</Label>
+                <Input type="time" required value={rescheduleEnd} onChange={(e) => setRescheduleEnd(e.target.value)} />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="submit" disabled={loading} className="glow-primary">
+                {loading ? "Rescheduling..." : "Reschedule"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

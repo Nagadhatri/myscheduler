@@ -1,6 +1,26 @@
 export type ScheduleCategory = 'Meeting' | 'Presentation' | 'Event Participation' | 'Learning' | 'Other';
 export type ScheduleStatus = 'Upcoming' | 'Completed' | 'Rescheduled' | 'Cancelled';
 export type BookingStatusType = 'Pending' | 'Accepted' | 'Accepted with Remarks' | 'Rejected' | 'Cancelled' | 'Rescheduled';
+export type ConnectionStatus = 'pending' | 'accepted' | 'rejected';
+
+export interface Profile {
+  id: string;
+  display_name: string;
+  email: string;
+  avatar_url: string | null;
+  created_at: string;
+}
+
+export interface Connection {
+  id: string;
+  requester_id: string;
+  receiver_id: string;
+  status: ConnectionStatus;
+  created_at: string;
+  // Joined data
+  requester?: Profile;
+  receiver?: Profile;
+}
 
 export interface Schedule {
   id: string;

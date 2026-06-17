@@ -1,0 +1,373 @@
+"use client";
+
+import { useState, useEffect, useMemo } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+import { Profile, Schedule } from "@/types";
+import { Calendar } from "@/components/ui/calendar";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { format, isBefore, startOfDay, addDays } from "date-fns";
+import { toast } from "sonner";
+import {
+  CalendarDays,
+  Clock,
+  Sparkles,
+  ArrowLeft,
+  ShieldAlert,
+  CalendarPlus,
+  User,
+} from "lucide-react";
+import Link from "next/link";
+import ChatPanel from "@/components/chatbot/ChatPanel";
+
+function generateDaySlots(dateStr: string) {
+  const slots = [];
+  for (let hour = 5; hour < 23; hour++) {
+    const startH = String(hour).padStart(2, "0");
+    const endH = String(hour + 1).padStart(2, "0");
+    slots.push({
+      id: `${dateStr}-${startH}`,
+      date: dateStr,
+      start_time: `${startH}:00:00`,
+      end_time: `${endH}:00:00`,
+    });
+  }
+  return slots;
+}
+
+export default function UserSchedulePage() {
+  const params = useParams();
+  const router = useRouter();
+  const userId = params.userId as string;
+  const supabase = createClient();
+
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [bookedSlots, setBookedSlots] = useState<{ date: string; start_time: string; status: string }[]>([]);
+
+  // Booking dialog
+  const [bookingSlot, setBookingSlot] = useState<{ start_time: string; end_time: string } | null>(null);
+  const [bookName, setBookName] = useState("");
+  const [bookEmail, setBookEmail] = useState("");
+  const [bookReason, setBookReason] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    const init = async () => {
+      setLoading(true);
+
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { router.push("/login"); return; }
+
+      // Prefill booking info
+      const { data: myProfile } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user.id)
+        .single();
+      if (myProfile) {
+        setBookName(myProfile.display_name);
+        setBookEmail(myProfile.email);
+      }
+
+      // Get target profile
+      const { data: targetProfile } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", userId)
+        .single();
+      setProfile(targetProfile);
+
+      // Check connection
+      const { data: conn } = await supabase
+        .from("connections")
+        .select("status")
+        .or(
+          `and(requester_id.eq.${user.id},receiver_id.eq.${userId}),and(requester_id.eq.${userId},receiver_id.eq.${user.id})`
+        )
+        .eq("status", "accepted")
+        .limit(1);
+
+      const connected = (conn && conn.length > 0) || user.id === userId;
+      setIsConnected(connected);
+
+      if (connected) {
+        // Fetch schedules that have accepted bookings
+        const { data: schedules } = await supabase
+          .from("schedules")
+          .select("date, start_time, status")
+          .eq("owner_id", userId);
+
+        if (schedules) {
+          setBookedSlots(
+            schedules.map((s: any) => ({
+              date: s.date,
+              start_time: s.start_time,
+              status: s.status,
+            }))
+          );
+        }
+      }
+
+      setLoading(false);
+    };
+    init();
+  }, [userId]);
+
+  const formattedDate = format(selectedDate, "yyyy-MM-dd");
+  const today = startOfDay(new Date());
+  const isPastDate = isBefore(startOfDay(selectedDate), today);
+
+  const allSlots = useMemo(() => generateDaySlots(formattedDate), [formattedDate]);
+
+  const slotsWithStatus = useMemo(() => {
+    if (isPastDate) return [];
+    return allSlots.map((slot) => {
+      const booked = bookedSlots.find(
+        (b) => b.date === slot.date && b.start_time === slot.start_time
+      );
+      return { ...slot, isBooked: !!booked, status: booked?.status };
+    });
+  }, [allSlots, bookedSlots, isPastDate, formattedDate]);
+
+  const datesWithAvailability = useMemo(() => {
+    const dates: Date[] = [];
+    for (let i = 0; i < 30; i++) dates.push(addDays(today, i));
+    return dates;
+  }, []);
+
+  const formatTime = (t: string) => {
+    const hour = parseInt(t.slice(0, 2));
+    const ampm = hour >= 12 ? "PM" : "AM";
+    return `${hour % 12 || 12}:00 ${ampm}`;
+  };
+
+  const handleBook = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!bookingSlot || bookReason.length < 10) {
+      toast.error("Please provide at least 10 characters for your reason.");
+      return;
+    }
+    setSubmitting(true);
+
+    // Create schedule for this slot
+    const { data: scheduleData, error: scheduleError } = await supabase
+      .from("schedules")
+      .insert({
+        title: `Booking by ${bookName}`,
+        category: "Meeting",
+        date: formattedDate,
+        start_time: bookingSlot.start_time,
+        end_time: bookingSlot.end_time,
+        status: "Upcoming",
+        owner_id: userId,
+      })
+      .select("id")
+      .single();
+
+    if (scheduleError) {
+      toast.error(scheduleError.message);
+      setSubmitting(false);
+      return;
+    }
+
+    const { error: bookingError } = await supabase.from("bookings").insert({
+      schedule_id: scheduleData.id,
+      visitor_name: bookName,
+      visitor_email: bookEmail,
+      description: bookReason,
+      booking_status: "Pending",
+    });
+
+    setSubmitting(false);
+    if (bookingError) {
+      toast.error(bookingError.message);
+    } else {
+      toast.success("🎉 Booking request sent!");
+      setBookingSlot(null);
+      setBookReason("");
+      // Update booked slots locally
+      setBookedSlots((prev) => [
+        ...prev,
+        { date: formattedDate, start_time: bookingSlot.start_time, status: "Upcoming" },
+      ]);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-32">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!isConnected) {
+    return (
+      <div className="flex flex-col items-center justify-center py-32 text-center px-6">
+        <ShieldAlert className="w-16 h-16 text-muted-foreground/30 mb-4" />
+        <h2 className="text-xl font-bold mb-2">Not Connected</h2>
+        <p className="text-muted-foreground max-w-sm mb-6">
+          You need to be connected with {profile?.display_name || "this person"} to view their schedule.
+        </p>
+        <Link href="/people">
+          <Button className="gap-2 glow-primary">
+            <ArrowLeft className="w-4 h-4" />
+            Go to People
+          </Button>
+        </Link>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-6 max-w-6xl mx-auto">
+      {/* User info */}
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+          <User className="w-5 h-5 text-primary" />
+        </div>
+        <div>
+          <h2 className="text-lg font-bold">{profile?.display_name}&apos;s Schedule</h2>
+          <p className="text-xs text-muted-foreground">{profile?.email}</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+        {/* Calendar */}
+        <div className="lg:col-span-2">
+          <Card className="glass-card border-white/5">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <CalendarDays className="w-5 h-5 text-[var(--status-upcoming)]" />
+                Select a Date
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex justify-center pb-6">
+              <Calendar
+                mode="single"
+                selected={selectedDate}
+                onSelect={(date) => { if (date) setSelectedDate(date); }}
+                className="rounded-xl"
+                modifiers={{ available: datesWithAvailability }}
+                modifiersClassNames={{ available: "font-semibold text-[var(--status-upcoming)]" }}
+                disabled={(date) => isBefore(startOfDay(date), today)}
+              />
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Slots */}
+        <div className="lg:col-span-3">
+          <Card className="glass-card border-white/5">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Clock className="w-5 h-5 text-[var(--status-completed)]" />
+                {format(selectedDate, "EEEE, MMMM d, yyyy")}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="max-h-[500px] overflow-y-auto pr-2">
+              {isPastDate ? (
+                <div className="text-center py-16 text-muted-foreground">
+                  <CalendarDays className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                  <p>This date has already passed.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {slotsWithStatus.map((slot) => (
+                    <div
+                      key={slot.id}
+                      className={`slot-card p-4 rounded-xl border flex items-center justify-between gap-3 ${
+                        slot.isBooked
+                          ? "border-white/5 bg-white/[0.01] opacity-50"
+                          : "border-white/5 bg-white/[0.02]"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                          slot.isBooked ? "bg-muted/30" : "bg-primary/10"
+                        }`}>
+                          <Clock className={`w-4 h-4 ${slot.isBooked ? "text-muted-foreground" : "text-primary"}`} />
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm">
+                            {formatTime(slot.start_time)} – {formatTime(slot.end_time)}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {slot.isBooked ? "Booked" : "Available"}
+                          </p>
+                        </div>
+                      </div>
+                      {slot.isBooked ? (
+                        <Badge className="bg-white/5 border border-white/10 text-xs">
+                          Booked
+                        </Badge>
+                      ) : (
+                        <Button
+                          size="sm"
+                          className="glow-primary text-xs px-3"
+                          onClick={() => setBookingSlot({ start_time: slot.start_time, end_time: slot.end_time })}
+                        >
+                          <CalendarPlus className="w-3.5 h-3.5 mr-1" />
+                          Book
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* Booking Dialog */}
+      <Dialog open={!!bookingSlot} onOpenChange={(open) => !open && setBookingSlot(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Book Appointment with {profile?.display_name}</DialogTitle>
+            <DialogDescription>
+              {bookingSlot && `${formatTime(bookingSlot.start_time)} – ${formatTime(bookingSlot.end_time)} on ${formattedDate}`}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleBook} className="space-y-4 mt-2">
+            <div className="space-y-2">
+              <Label>Your Name</Label>
+              <Input required value={bookName} onChange={(e) => setBookName(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Email</Label>
+              <Input required type="email" value={bookEmail} onChange={(e) => setBookEmail(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Reason (min 10 characters)</Label>
+              <Input required value={bookReason} onChange={(e) => setBookReason(e.target.value)} placeholder="I'd like to discuss..." />
+            </div>
+            <DialogFooter>
+              <Button type="submit" disabled={submitting} className="w-full glow-primary">
+                {submitting ? "Submitting..." : "Submit Request"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <ChatPanel context="visitor" />
+    </div>
+  );
+}
