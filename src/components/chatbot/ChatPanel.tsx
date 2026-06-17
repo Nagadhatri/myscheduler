@@ -166,33 +166,45 @@ export default function ChatPanel({
       } else if (name === "getAvailableSlots") {
         const ownerId = targetUserId || args.owner_id;
         if (!ownerId) throw new Error("No target user ID provided for checking slots.");
-        // Return the auto-generated slot info
-        const { data } = await supabase
-          .from("schedules")
-          .select("*, bookings(booking_status)")
-          .eq("owner_id", ownerId)
-          .eq("date", args.date)
-          .eq("status", "Upcoming");
-        const booked = (data || [])
-          .filter((s: any) =>
-            s.bookings?.some((b: any) =>
-              ["Accepted", "Accepted with Remarks"].includes(b.booking_status)
+        
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          // Unauthenticated visitor -> fetch from public endpoint
+          const res = await fetch(`/api/available-slots?userId=${ownerId}&date=${args.date}`);
+          const resData = await res.json();
+          if (resData.error) throw new Error(resData.error);
+          
+          // Map to match structure expected by LLM
+          responseObj = { available_slots: resData.available_slots || [], date: args.date };
+        } else {
+          // Return the auto-generated slot info
+          const { data } = await supabase
+            .from("schedules")
+            .select("*, bookings(booking_status)")
+            .eq("owner_id", ownerId)
+            .eq("date", args.date)
+            .eq("status", "Upcoming");
+          const booked = (data || [])
+            .filter((s: any) =>
+              s.bookings?.some((b: any) =>
+                ["Accepted", "Accepted with Remarks", "Pending"].includes(b.booking_status)
+              )
             )
-          )
-          .map((s: any) => s.start_time);
-        // Generate all slots and filter
-        const allSlots = [];
-        for (let h = 5; h < 23; h++) {
-          const st = `${String(h).padStart(2, "0")}:00:00`;
-          if (!booked.includes(st)) {
-            allSlots.push({
-              time: `${String(h).padStart(2, "0")}:00 - ${String(h + 1).padStart(2, "0")}:00`,
-              date: args.date,
-              start_time: st,
-            });
+            .map((s: any) => s.start_time);
+          // Generate all slots and filter
+          const allSlots = [];
+          for (let h = 5; h < 23; h++) {
+            const st = `${String(h).padStart(2, "0")}:00:00`;
+            if (!booked.includes(st)) {
+              allSlots.push({
+                time: `${String(h).padStart(2, "0")}:00 - ${String(h + 1).padStart(2, "0")}:00`,
+                date: args.date,
+                start_time: st,
+              });
+            }
           }
+          responseObj = { available_slots: allSlots, date: args.date };
         }
-        responseObj = { available_slots: allSlots, date: args.date };
       } else if (name === "checkBookingStatus") {
         const { data } = await supabase
           .from("bookings")
@@ -264,34 +276,59 @@ export default function ChatPanel({
         // Create schedule + booking
         const targetId = targetUserId || args.owner_id;
         if (!targetId) throw new Error("No target user specified for booking.");
-        const { data: scheduleData, error: scheduleError } = await supabase
-          .from("schedules")
-          .insert({
-            title: `Booking by ${args.name}`,
-            category: "Meeting",
-            date: args.date,
-            start_time: args.start_time,
-            end_time: args.end_time,
-            status: "Upcoming",
-            owner_id: targetId,
-          })
-          .select("id")
-          .single();
-        if (scheduleError) throw scheduleError;
-        const { error: bookingError } = await supabase
-          .from("bookings")
-          .insert({
-            schedule_id: scheduleData.id,
-            visitor_name: args.name,
-            visitor_email: args.email,
-            description: args.description,
-            booking_status: "Pending",
+        
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          // Unauthenticated visitor -> post to public API
+          const res = await fetch("/api/book", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              userId: targetId,
+              date: args.date,
+              startTime: args.start_time,
+              endTime: args.end_time,
+              name: args.name,
+              email: args.email,
+              description: args.description,
+            }),
           });
-        if (bookingError) throw bookingError;
-        responseObj = {
-          success: true,
-          message: "Booking request submitted successfully!",
-        };
+          const resData = await res.json();
+          if (resData.error) throw new Error(resData.error);
+          responseObj = {
+            success: true,
+            message: "Booking request submitted successfully!",
+          };
+        } else {
+          const { data: scheduleData, error: scheduleError } = await supabase
+            .from("schedules")
+            .insert({
+              title: `Booking by ${args.name}`,
+              category: "Meeting",
+              date: args.date,
+              start_time: args.start_time,
+              end_time: args.end_time,
+              status: "Upcoming",
+              owner_id: targetId,
+            })
+            .select("id")
+            .single();
+          if (scheduleError) throw scheduleError;
+          const { error: bookingError } = await supabase
+            .from("bookings")
+            .insert({
+              schedule_id: scheduleData.id,
+              visitor_name: args.name,
+              visitor_email: args.email,
+              description: args.description,
+              booking_status: "Pending",
+            });
+          if (bookingError) throw bookingError;
+          responseObj = {
+            success: true,
+            message: "Booking request submitted successfully!",
+          };
+        }
       } else if (name === "sendConnectionRequest") {
         const { data: userData } = await supabase.auth.getUser();
         if (!userData.user) throw new Error("Not authenticated");
