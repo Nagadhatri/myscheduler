@@ -114,6 +114,17 @@ const OWNER_TOOLS = [
       properties: {},
     },
   },
+  {
+    name: "navigateToPage",
+    description: "Navigate/redirect the user to a specific page on the website. Use this when the user explicitly asks to go to a page (like '/dashboard', '/people', '/login', '/signup', or '/schedule/[userId]'), or gives permission to be redirected.",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        path: { type: "string" as const, description: "The relative path to navigate to (e.g., '/people', '/dashboard', '/login', '/schedule/some-user-id')" },
+      },
+      required: ["path"],
+    },
+  },
 ];
 
 const VISITOR_TOOLS = [
@@ -199,6 +210,17 @@ const VISITOR_TOOLS = [
     parameters: {
       type: "object" as const,
       properties: {},
+    },
+  },
+  {
+    name: "navigateToPage",
+    description: "Navigate/redirect the user to a specific page on the website. Use this when the user explicitly asks to go to a page (like '/dashboard', '/people', '/login', '/signup', or '/schedule/[userId]'), or gives permission to be redirected.",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        path: { type: "string" as const, description: "The relative path to navigate to (e.g., '/people', '/dashboard', '/login', '/schedule/some-user-id')" },
+      },
+      required: ["path"],
     },
   },
 ];
@@ -310,10 +332,13 @@ You are the AI assistant on the OWNER'S DASHBOARD. You help the schedule owner m
 4. **Delete slots**: Remove schedule entries (use deleteSlot)
 5. **Manage bookings**: View pending requests (use queryBookings), accept/reject them (use respondToBooking)
 6. **Social features**: Search for users (searchPeople), view connections (getConnections), and send connection requests (sendConnectionRequest).
-7. **Answer questions**: Explain how any feature of MyScheduler works
+7. **Redirection/Navigation**: Navigate users to other pages (use navigateToPage)
+8. **Answer questions**: Explain how any feature of MyScheduler works
 
 ## Behavioral Rules:
 - Be warm, professional, and concise
+- **Security & Login Credentials**: NEVER ask the user to type their username, password, or login credentials in the chat interface. If they are not logged in (e.g. tool execution indicates not authenticated), ask for permission to redirect them to the Login page ('/login') using the navigateToPage tool.
+- **Redirection**: If a user asks to navigate to a page (e.g. "go to people page", "go to login") or if you believe they should be redirected and they give permission, call navigateToPage. If they choose not to give permission, perform the action directly in chat if possible (act on your own).
 - When the user asks to add/reschedule/delete something, collect the needed info conversationally
 - For write operations (add, delete, reschedule, respond to bookings, sendConnectionRequest), ALWAYS use the appropriate tool
 - If a user asks "what's on my calendar?" — call getTodaySchedule
@@ -334,7 +359,8 @@ You are the AI assistant for VISITORS on MyScheduler. You help them find slots, 
 2. **Book appointments**: Help users book a specific slot (use bookAppointment)
 3. **Check booking status**: Look up past bookings by email (use checkBookingStatus)
 4. **Social features**: Search for users (searchPeople), view connections (getConnections), and send connection requests (sendConnectionRequest).
-5. **Answer questions**: Explain how to use MyScheduler, how to sign up, connect with people, etc.
+5. **Redirection/Navigation**: Navigate users to other pages (use navigateToPage)
+6. **Answer questions**: Explain how to use MyScheduler, how to sign up, connect with people, etc.
 
 ## CRITICAL: How to Help Someone Book
 When a user wants to book, you need these details. Ask for them ONE AT A TIME in a natural conversation:
@@ -367,6 +393,8 @@ You: [call bookAppointment] "Your booking request has been submitted! You'll be 
 ## Behavioral Rules:
 - Be friendly, helpful, and conversational 😊
 - Use emojis sparingly to be engaging
+- **Security & Login Credentials**: NEVER ask the user to type their username, password, or login credentials in the chat interface. If they are not logged in (e.g., tool execution returns not authenticated/logged in), ask for permission to redirect them to the Login page ('/login') using the navigateToPage tool.
+- **Redirection**: If a user asks to navigate to a page (e.g. "go to people page", "go to login", "go to schedule page") or if you believe they should be redirected and they give permission, call navigateToPage. If they choose not to give permission, perform the action directly in chat if possible (act on your own).
 - If a user asks about ANYTHING related to MyScheduler, answer from your knowledge
 - For date math: today is ${today} (${dayOfWeek}). Calculate "tomorrow", "next Monday", etc. correctly
 - If a user just says "hi" or "hello", greet them and explain what you can help with

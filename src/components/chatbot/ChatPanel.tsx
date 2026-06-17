@@ -8,6 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { format } from "date-fns";
 import { MessageCircle, X, Send, Bot, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
 type Role = "user" | "model" | "function";
 type Message = {
@@ -35,6 +36,7 @@ export default function ChatPanel({
   } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
+  const router = useRouter();
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -101,6 +103,7 @@ export default function ChatPanel({
             "getConnections",
             "getCurrentUser",
             "getPageOwner",
+            "navigateToPage",
           ].includes(call.name)
         ) {
           await handleFunctionExecution(call.name, call.args, [
@@ -127,7 +130,10 @@ export default function ChatPanel({
     let responseObj: any = {};
 
     try {
-      if (name === "getCurrentUser") {
+      if (name === "navigateToPage") {
+        router.push(args.path);
+        responseObj = { success: true, message: `Successfully navigated to ${args.path}` };
+      } else if (name === "getCurrentUser") {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
           responseObj = { error: "User not logged in." };
@@ -158,10 +164,13 @@ export default function ChatPanel({
           .eq("date", queryDate);
         responseObj = { schedules: data || [] };
       } else if (name === "getAvailableSlots") {
+        const ownerId = targetUserId || args.owner_id;
+        if (!ownerId) throw new Error("No target user ID provided for checking slots.");
         // Return the auto-generated slot info
         const { data } = await supabase
           .from("schedules")
           .select("*, bookings(booking_status)")
+          .eq("owner_id", ownerId)
           .eq("date", args.date)
           .eq("status", "Upcoming");
         const booked = (data || [])
@@ -276,28 +285,56 @@ export default function ChatPanel({
         if (error) throw error;
         responseObj = { success: true, message: "Connection request sent!" };
       } else if (name === "rescheduleSlot") {
-        // 1. Update old slot to Rescheduled
+        // 1. Fetch old slot to copy details and check for bookings
+        const { data: oldSlot } = await supabase.from("schedules").select("*").eq("id", args.slot_id).single();
+        if (!oldSlot) throw new Error("Slot not found.");
+
+        const { data: booking } = await supabase
+          .from("bookings")
+          .select("*")
+          .eq("schedule_id", args.slot_id)
+          .maybeSingle();
+
+        // 2. Update old slot to Rescheduled
         const { error: updateError } = await supabase
           .from("schedules")
           .update({ status: "Rescheduled" })
           .eq("id", args.slot_id);
         if (updateError) throw updateError;
         
-        // 2. Fetch old slot to copy details
-        const { data: oldSlot } = await supabase.from("schedules").select("*").eq("id", args.slot_id).single();
-        
         // 3. Insert new slot
-        const { error: insertError } = await supabase.from("schedules").insert({
-          title: oldSlot.title,
-          category: oldSlot.category,
-          date: args.new_date,
-          start_time: args.new_start_time + ":00",
-          end_time: args.new_end_time + ":00",
-          owner_id: oldSlot.owner_id,
-          status: "Upcoming",
-        });
+        const { data: newSlot, error: insertError } = await supabase
+          .from("schedules")
+          .insert({
+            title: oldSlot.title,
+            category: oldSlot.category,
+            description: oldSlot.description,
+            date: args.new_date,
+            start_time: args.new_start_time + ":00",
+            end_time: args.new_end_time + ":00",
+            owner_id: oldSlot.owner_id,
+            status: "Upcoming",
+          })
+          .select("id")
+          .single();
         if (insertError) throw insertError;
-        responseObj = { success: true, message: "Slot rescheduled successfully!" };
+
+        let bookingMsg = "";
+        if (booking && newSlot) {
+          const { error: bookingError } = await supabase
+            .from("bookings")
+            .update({ schedule_id: newSlot.id, booking_status: "Rescheduled" })
+            .eq("id", booking.id);
+          if (bookingError) throw bookingError;
+          bookingMsg = ` Affected booking for visitor ${booking.visitor_name} (${booking.visitor_email}) was moved to the new slot and marked as Rescheduled.`;
+        }
+        
+        responseObj = { 
+          success: true, 
+          message: `Slot rescheduled successfully!${bookingMsg}`,
+          visitor_name: booking?.visitor_name || null,
+          visitor_email: booking?.visitor_email || null,
+        };
       } else if (name === "respondToBooking") {
         const { error } = await supabase
           .from("bookings")

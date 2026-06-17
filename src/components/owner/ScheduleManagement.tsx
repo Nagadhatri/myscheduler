@@ -120,33 +120,59 @@ export default function ScheduleManagement() {
     if (!rescheduleId) return;
     setLoading(true);
 
-    // Mark old slot as Rescheduled
-    await supabase.from("schedules").update({ status: "Rescheduled" }).eq("id", rescheduleId);
+    try {
+      // 1. Check for booking on old slot
+      const { data: booking } = await supabase
+        .from("bookings")
+        .select("*")
+        .eq("schedule_id", rescheduleId)
+        .maybeSingle();
 
-    // Get old slot info for context
-    const oldSlot = schedules.find(s => s.id === rescheduleId);
+      // 2. Mark old slot as Rescheduled
+      await supabase.from("schedules").update({ status: "Rescheduled" }).eq("id", rescheduleId);
 
-    // Create new slot
-    const { data: userData } = await supabase.auth.getUser();
-    const { error } = await supabase.from("schedules").insert({
-      title: oldSlot?.title || title,
-      category: oldSlot?.category || "Meeting",
-      description: oldSlot?.description || "",
-      date: rescheduleDate,
-      start_time: rescheduleStart + ":00",
-      end_time: rescheduleEnd + ":00",
-      status: "Upcoming",
-      owner_id: userData.user?.id,
-    });
+      // 3. Get old slot info for context
+      const oldSlot = schedules.find(s => s.id === rescheduleId);
 
-    setLoading(false);
-    if (error) {
-      toast.error(error.message);
-    } else {
-      toast.success("Meeting rescheduled! ✅");
+      // 4. Create new slot
+      const { data: userData } = await supabase.auth.getUser();
+      const { data: newSlot, error } = await supabase
+        .from("schedules")
+        .insert({
+          title: oldSlot?.title || title,
+          category: oldSlot?.category || "Meeting",
+          description: oldSlot?.description || "",
+          date: rescheduleDate,
+          start_time: rescheduleStart + ":00",
+          end_time: rescheduleEnd + ":00",
+          status: "Upcoming",
+          owner_id: userData.user?.id,
+        })
+        .select("id")
+        .single();
+
+      if (error) throw error;
+
+      // 5. Update booking if it exists
+      if (booking && newSlot) {
+        await supabase
+          .from("bookings")
+          .update({ schedule_id: newSlot.id, booking_status: "Rescheduled" })
+          .eq("id", booking.id);
+      }
+
+      toast.success(
+        booking 
+          ? `Meeting with ${booking.visitor_name} rescheduled! ✅` 
+          : "Meeting rescheduled! ✅"
+      );
       setRescheduleDialogOpen(false);
       setRescheduleId(null);
       fetchSchedules();
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
