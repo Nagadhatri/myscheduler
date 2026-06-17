@@ -422,28 +422,25 @@ You: [call bookAppointment] "Your booking request has been submitted! You'll be 
       contents.push({ role: "user", parts: [{ text: message }] });
     }
 
-    let response;
-    try {
-      response = await genAI.models.generateContent({
-        model: GEMINI_MODEL,
-        contents,
-        config: {
-          systemInstruction,
-          // @ts-ignore
-          tools: [{ functionDeclarations: tools }],
-        },
-      });
-    } catch (error: any) {
-      const isQuotaError = 
-        error?.status === 429 || 
-        error?.message?.includes("RESOURCE_EXHAUSTED") || 
-        error?.message?.includes("quota") || 
-        error?.message?.includes("Quota");
+    const modelsToTry = [GEMINI_MODEL];
+    if (GEMINI_MODEL === "gemini-2.0-flash") {
+      modelsToTry.push("gemini-2.0-flash-lite");
+      modelsToTry.push("gemini-2.5-flash");
+      modelsToTry.push("gemini-1.5-flash");
+    } else {
+      modelsToTry.push("gemini-2.0-flash");
+      modelsToTry.push("gemini-2.0-flash-lite");
+    }
 
-      if (isQuotaError && GEMINI_MODEL !== "gemini-1.5-flash") {
-        console.warn(`Primary model ${GEMINI_MODEL} exhausted. Retrying with fallback model gemini-1.5-flash...`);
+    let response;
+    let success = false;
+    let lastError: any = null;
+
+    for (const modelName of modelsToTry) {
+      try {
+        console.log(`Attempting chat generation with model: ${modelName}`);
         response = await genAI.models.generateContent({
-          model: "gemini-1.5-flash",
+          model: modelName,
           contents,
           config: {
             systemInstruction,
@@ -451,9 +448,33 @@ You: [call bookAppointment] "Your booking request has been submitted! You'll be 
             tools: [{ functionDeclarations: tools }],
           },
         });
-      } else {
-        throw error;
+        success = true;
+        break;
+      } catch (error: any) {
+        lastError = error;
+        const isQuotaError = 
+          error?.status === 429 || 
+          error?.message?.includes("RESOURCE_EXHAUSTED") || 
+          error?.message?.includes("quota") || 
+          error?.message?.includes("Quota");
+          
+        const isModelNotFoundError =
+          error?.status === 404 ||
+          error?.message?.includes("not found") ||
+          error?.message?.includes("NOT_FOUND") ||
+          error?.message?.includes("not supported");
+
+        if ((isQuotaError || isModelNotFoundError) && modelName !== modelsToTry[modelsToTry.length - 1]) {
+          console.warn(`Model ${modelName} failed (${isQuotaError ? "Quota Limit" : "Not Found"}). Retrying with next fallback...`);
+          continue;
+        } else {
+          break;
+        }
       }
+    }
+
+    if (!success || !response) {
+      throw lastError || new Error("Failed to generate content with all fallback models.");
     }
 
     const call = response.functionCalls?.[0];
