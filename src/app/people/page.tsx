@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import Link from "next/link";
+import { getPeopleYouMayKnow, Recommendation } from "@/lib/recommendations";
 import {
   Search,
   UserPlus,
@@ -20,27 +21,40 @@ import {
   CalendarDays,
   Inbox,
   ArrowRight,
+  Sparkles,
 } from "lucide-react";
 
 export default function PeoplePage() {
   const supabase = createClient();
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Profile[]>([]);
   const [connections, setConnections] = useState<Connection[]>([]);
+  const [suggestions, setSuggestions] = useState<Recommendation[]>([]);
   const [loading, setLoading] = useState(false);
   const [searching, setSearching] = useState(false);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
 
   useEffect(() => {
     const init = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         setCurrentUserId(user.id);
+        setCurrentUserEmail(user.email || null);
         fetchConnections(user.id);
+        fetchSuggestions(user.id, user.email || "");
       }
     };
     init();
   }, []);
+
+  const fetchSuggestions = async (userId: string, email: string) => {
+    setLoadingSuggestions(true);
+    const res = await getPeopleYouMayKnow(supabase, userId, email);
+    setSuggestions(res.filter(item => item.score > 0));
+    setLoadingSuggestions(false);
+  };
 
   const fetchConnections = async (userId: string) => {
     setLoading(true);
@@ -82,7 +96,10 @@ export default function PeoplePage() {
       else toast.error(error.message);
     } else {
       toast.success("Connection request sent! 🤝");
-      if (currentUserId) fetchConnections(currentUserId);
+      if (currentUserId) {
+        fetchConnections(currentUserId);
+        if (currentUserEmail) fetchSuggestions(currentUserId, currentUserEmail);
+      }
     }
   };
 
@@ -95,7 +112,10 @@ export default function PeoplePage() {
     if (error) toast.error(error.message);
     else {
       toast.success(action === "accepted" ? "Connection accepted! 🎉" : "Connection declined.");
-      if (currentUserId) fetchConnections(currentUserId);
+      if (currentUserId) {
+        fetchConnections(currentUserId);
+        if (currentUserEmail) fetchSuggestions(currentUserId, currentUserEmail);
+      }
     }
   };
 
@@ -105,6 +125,7 @@ export default function PeoplePage() {
     if (!error && currentUserId) {
       toast.success("Connection removed.");
       fetchConnections(currentUserId);
+      if (currentUserEmail) fetchSuggestions(currentUserId, currentUserEmail);
     }
   };
 
@@ -186,6 +207,53 @@ export default function PeoplePage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Suggested Connections (People You May Know) */}
+      {suggestions.length > 0 && (
+        <Card className="glass-card border-white/5 overflow-hidden">
+          <div className="h-1 bg-gradient-to-r from-primary to-[var(--status-upcoming)]" />
+          <CardHeader className="pb-3 flex flex-row items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Sparkles className="w-4 h-4 text-primary" />
+              People You May Know
+            </CardTitle>
+            <Badge className="bg-primary/10 text-primary border-primary/20 text-xs">
+              Recommendations
+            </Badge>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              {suggestions.map((item) => (
+                <div
+                  key={item.profile.id}
+                  className="p-4 rounded-xl border border-white/5 bg-white/[0.01] flex flex-col justify-between gap-3 text-xs"
+                >
+                  <div className="space-y-1">
+                    <p className="font-semibold text-sm">{item.profile.display_name}</p>
+                    <p className="text-muted-foreground">{item.profile.occupation || "Professional"}</p>
+                    <p className="text-[10px] text-muted-foreground/85 truncate">{item.profile.email}</p>
+                    <div className="flex flex-wrap gap-1 pt-1.5">
+                      {item.reasons.map((reason, idx) => (
+                        <Badge key={idx} variant="outline" className="text-[9px] px-1.5 py-0.5 border-white/10 text-primary bg-primary/5">
+                          {reason}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    className="w-full h-8 text-xs gap-1.5 glow-primary"
+                    onClick={() => sendRequest(item.profile.id)}
+                  >
+                    <UserPlus className="w-3.5 h-3.5" />
+                    Connect
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Incoming Requests */}

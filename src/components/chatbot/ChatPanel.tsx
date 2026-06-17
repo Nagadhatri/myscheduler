@@ -211,20 +211,31 @@ export default function ChatPanel({
         responseObj = { bookings: data || [] };
       } else if (name === "searchPeople") {
         const { data: { user } } = await supabase.auth.getUser();
-        let queryBuilder = supabase
-          .from("profiles")
-          .select("id, display_name, email, occupation");
+        if (!user) throw new Error("Not authenticated");
         
         if (args.query) {
-          queryBuilder = queryBuilder.or(`display_name.ilike.%${args.query}%,email.ilike.%${args.query}%`);
+          const { data } = await supabase
+            .from("profiles")
+            .select("id, display_name, email, occupation")
+            .or(`display_name.ilike.%${args.query}%,email.ilike.%${args.query}%`)
+            .neq("id", user.id)
+            .limit(10);
+          responseObj = { users: data || [] };
+        } else {
+          const { getPeopleYouMayKnow } = await import("@/lib/recommendations");
+          const recommendations = await getPeopleYouMayKnow(supabase, user.id, user.email || "");
+          responseObj = { 
+            users: recommendations
+              .filter(r => r.score > 0)
+              .map(r => ({
+                id: r.profile.id,
+                display_name: r.profile.display_name,
+                email: r.profile.email,
+                occupation: r.profile.occupation,
+                reasons: r.reasons,
+              }))
+          };
         }
-        
-        if (user) {
-          queryBuilder = queryBuilder.neq("id", user.id);
-        }
-        
-        const { data } = await queryBuilder.limit(10);
-        responseObj = { users: data || [] };
       } else if (name === "getConnections") {
         let query = supabase.from("connections").select("*, requester:profiles!connections_requester_id_fkey(id, display_name, email, occupation), receiver:profiles!connections_receiver_id_fkey(id, display_name, email, occupation)");
         if (args.status) {
