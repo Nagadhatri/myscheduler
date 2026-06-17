@@ -422,15 +422,39 @@ You: [call bookAppointment] "Your booking request has been submitted! You'll be 
       contents.push({ role: "user", parts: [{ text: message }] });
     }
 
-    const response = await genAI.models.generateContent({
-      model: GEMINI_MODEL,
-      contents,
-      config: {
-        systemInstruction,
-        // @ts-ignore
-        tools: [{ functionDeclarations: tools }],
-      },
-    });
+    let response;
+    try {
+      response = await genAI.models.generateContent({
+        model: GEMINI_MODEL,
+        contents,
+        config: {
+          systemInstruction,
+          // @ts-ignore
+          tools: [{ functionDeclarations: tools }],
+        },
+      });
+    } catch (error: any) {
+      const isQuotaError = 
+        error?.status === 429 || 
+        error?.message?.includes("RESOURCE_EXHAUSTED") || 
+        error?.message?.includes("quota") || 
+        error?.message?.includes("Quota");
+
+      if (isQuotaError && GEMINI_MODEL !== "gemini-1.5-flash") {
+        console.warn(`Primary model ${GEMINI_MODEL} exhausted. Retrying with fallback model gemini-1.5-flash...`);
+        response = await genAI.models.generateContent({
+          model: "gemini-1.5-flash",
+          contents,
+          config: {
+            systemInstruction,
+            // @ts-ignore
+            tools: [{ functionDeclarations: tools }],
+          },
+        });
+      } else {
+        throw error;
+      }
+    }
 
     const call = response.functionCalls?.[0];
     if (call) {
