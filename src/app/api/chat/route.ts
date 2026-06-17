@@ -106,6 +106,14 @@ const OWNER_TOOLS = [
       },
     },
   },
+  {
+    name: "getCurrentUser",
+    description: "Get the profile details of the currently logged-in user (such as name, email, occupation). Use this when the user asks 'who am I?', 'what is my occupation?', or 'what is my profile?'.",
+    parameters: {
+      type: "object" as const,
+      properties: {},
+    },
+  },
 ];
 
 const VISITOR_TOOLS = [
@@ -143,6 +151,54 @@ const VISITOR_TOOLS = [
       type: "object" as const,
       properties: { email: { type: "string" as const } },
       required: ["email"],
+    },
+  },
+  {
+    name: "searchPeople",
+    description: "Search for other users by name or email to connect with them.",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        query: { type: "string" as const, description: "Name or email to search for" },
+      },
+      required: ["query"],
+    },
+  },
+  {
+    name: "sendConnectionRequest",
+    description: "Send a connection request to another user by their ID.",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        receiver_id: { type: "string" as const, description: "The ID of the user to connect with" },
+      },
+      required: ["receiver_id"],
+    },
+  },
+  {
+    name: "getConnections",
+    description: "Get the user's connections (pending, accepted, or rejected).",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        status: { type: "string" as const, description: "Optional filter by status: 'pending', 'accepted', 'rejected'. If omitted, returns all." },
+      },
+    },
+  },
+  {
+    name: "getCurrentUser",
+    description: "Get the profile details of the currently logged-in user (such as name, email, occupation). Use this when the user asks 'who am I?', 'what is my occupation?', or 'what is my profile?'.",
+    parameters: {
+      type: "object" as const,
+      properties: {},
+    },
+  },
+  {
+    name: "getPageOwner",
+    description: "Get the profile details of the user whose schedule page the visitor is currently viewing (name, email, occupation). Use this when the visitor asks 'whose schedule is this?', 'who is the owner?', or 'what is the owner's occupation?'.",
+    parameters: {
+      type: "object" as const,
+      properties: {},
     },
   },
 ];

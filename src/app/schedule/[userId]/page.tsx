@@ -367,7 +367,7 @@ export default function UserSchedulePage() {
         </DialogContent>
       </Dialog>
 
-      <ChatPanel context="visitor" />
+      <ChatPanel context="visitor" targetUserId={userId} />
     </div>
   );
 }

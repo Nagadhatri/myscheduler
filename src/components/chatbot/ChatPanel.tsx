@@ -20,8 +20,10 @@ type Message = {
 
 export default function ChatPanel({
   context,
+  targetUserId,
 }: {
   context: "owner" | "visitor";
+  targetUserId?: string;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState("");
@@ -95,6 +97,10 @@ export default function ChatPanel({
             "getAvailableSlots",
             "queryBookings",
             "checkBookingStatus",
+            "searchPeople",
+            "getConnections",
+            "getCurrentUser",
+            "getPageOwner",
           ].includes(call.name)
         ) {
           await handleFunctionExecution(call.name, call.args, [
@@ -121,12 +127,35 @@ export default function ChatPanel({
     let responseObj: any = {};
 
     try {
-      if (name === "getTodaySchedule") {
-        const today = format(new Date(), "yyyy-MM-dd");
+      if (name === "getCurrentUser") {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          responseObj = { error: "User not logged in." };
+        } else {
+          const { data } = await supabase
+            .from("profiles")
+            .select("id, display_name, email, occupation")
+            .eq("id", user.id)
+            .single();
+          responseObj = { user: data || null };
+        }
+      } else if (name === "getPageOwner") {
+        if (!targetUserId) {
+          responseObj = { error: "No target user ID provided for this page." };
+        } else {
+          const { data } = await supabase
+            .from("profiles")
+            .select("id, display_name, email, occupation")
+            .eq("id", targetUserId)
+            .single();
+          responseObj = { owner: data || null };
+        }
+      } else if (name === "getTodaySchedule") {
+        const queryDate = args.date || format(new Date(), "yyyy-MM-dd");
         const { data } = await supabase
           .from("schedules")
           .select("*")
-          .eq("date", today);
+          .eq("date", queryDate);
         responseObj = { schedules: data || [] };
       } else if (name === "getAvailableSlots") {
         // Return the auto-generated slot info
@@ -162,11 +191,15 @@ export default function ChatPanel({
           .eq("visitor_email", args.email);
         responseObj = { bookings: data || [] };
       } else if (name === "queryBookings") {
-        const { data } = await supabase
+        const statusFilter = args.status || "Pending";
+        let query = supabase
           .from("bookings")
-          .select("*, schedule:schedules(*)")
-          .eq("booking_status", "Pending");
-        responseObj = { pending_bookings: data || [] };
+          .select("*, schedule:schedules(*)");
+        if (statusFilter !== "all") {
+          query = query.eq("booking_status", statusFilter);
+        }
+        const { data } = await query;
+        responseObj = { bookings: data || [] };
       } else if (name === "searchPeople") {
         const { data } = await supabase
           .from("profiles")
@@ -203,6 +236,8 @@ export default function ChatPanel({
         responseObj = { success: true, message: "Slot deleted." };
       } else if (name === "bookAppointment") {
         // Create schedule + booking
+        const targetId = targetUserId || args.owner_id;
+        if (!targetId) throw new Error("No target user specified for booking.");
         const { data: scheduleData, error: scheduleError } = await supabase
           .from("schedules")
           .insert({
@@ -212,6 +247,7 @@ export default function ChatPanel({
             start_time: args.start_time,
             end_time: args.end_time,
             status: "Upcoming",
+            owner_id: targetId,
           })
           .select("id")
           .single();
