@@ -149,7 +149,7 @@ const VISITOR_TOOLS = [
         date: { type: "string" as const, description: "Date in YYYY-MM-DD format" },
         start_time: { type: "string" as const, description: "Start time in HH:mm:ss format (e.g., 10:00:00)" },
         end_time: { type: "string" as const, description: "End time in HH:mm:ss format (e.g., 11:00:00)" },
-        description: { type: "string" as const, description: "Reason for the meeting" },
+        description: { type: "string" as const, description: "Reason for the meeting (must be at least 25 words)" },
       },
       required: ["name", "email", "date", "start_time", "end_time", "description"],
     },
@@ -377,9 +377,12 @@ When a user wants to book, you need these details. Ask for them ONE AT A TIME in
 2. **Time** — "What time works for you?" Then show available slots for that date
 3. **Name** — "What's your full name?"
 4. **Email** — "And your email address?"
-5. **Reason** — "What's the reason for this meeting? (Please give at least 10 characters)"
+5. **Reason** — "What's the reason for this meeting? (Please give at least 25 words)"
 
-Once you have ALL 5 pieces of info, call bookAppointment with:
+Once you have ALL 5 pieces of info:
+1. **Summarize** the booking for the user: "Here is your booking request: [Name, Email, Date, Time, Reason]. Should I go ahead and submit this?"
+2. **Wait** for their confirmation (e.g., "yes", "looks good")
+3. ONLY AFTER they confirm, call bookAppointment with:
 - date in YYYY-MM-DD format
 - start_time in HH:mm:ss format (e.g., "10:00:00")
 - end_time = start_time + 1 hour (e.g., "11:00:00")
@@ -395,8 +398,17 @@ You: "10 AM - 11 AM. What's your full name?"
 User: "John Doe"
 You: "And your email?"
 User: "john@example.com"
-You: "Last thing — what's the reason for this meeting? (at least 10 characters)"
-User: "I want to discuss the project roadmap"
+You: "Last thing — what's the reason for this meeting? (Please provide at least 25 words)"
+User: "[A 25+ word reason here...]"
+You: "Great! Here is a summary of your booking:
+- **Date**: [Date]
+- **Time**: 10:00 AM - 11:00 AM
+- **Name**: John Doe
+- **Email**: john@example.com
+- **Reason**: [Reason]
+
+Should I go ahead and submit this request?"
+User: "Yes, submit it."
 You: [call bookAppointment] "Your booking request has been submitted! You'll be notified once it's approved. 🎉"
 
 ## Behavioral Rules:
@@ -413,8 +425,9 @@ You: [call bookAppointment] "Your booking request has been submitted! You'll be 
 - For date math: today is ${today} (${dayOfWeek}). Calculate "tomorrow", "next Monday", etc. correctly
 - If a user just says "hi" or "hello", greet them and explain what you can help with
 - If asked something totally unrelated, briefly answer and redirect: "By the way, I can also help you book an appointment! 📅"
-- When showing available slots, format them as a clean list with AM/PM times
-- NEVER make up slot availability — always call getAvailableSlots first`;
+- When showing available slots, format them as a clean numbered list with ✅ icons
+- NEVER make up slot availability — always call getAvailableSlots first
+- Enforce the 25-word minimum for the reason strictly. If it is too short, ask them to expand on it.`;
 
     const systemInstruction = context === "owner" ? ownerSystemInstruction : visitorSystemInstruction;
     const tools = context === "owner" ? OWNER_TOOLS : VISITOR_TOOLS;

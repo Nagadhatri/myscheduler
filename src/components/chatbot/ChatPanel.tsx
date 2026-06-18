@@ -6,9 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { format } from "date-fns";
-import { MessageCircle, X, Send, Bot, Sparkles } from "lucide-react";
+import { MessageCircle, X, Send, Bot, Sparkles, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { ChatErrorBoundary } from "./ChatErrorBoundary";
 
 type Role = "user" | "model" | "function";
 type Message = {
@@ -19,12 +20,14 @@ type Message = {
   response?: any;
 };
 
-export default function ChatPanel({
+function ChatPanelInner({
   context,
   targetUserId,
+  mode = "floating",
 }: {
   context: "owner" | "visitor";
   targetUserId?: string;
+  mode?: "floating" | "inline";
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState("");
@@ -43,6 +46,11 @@ export default function ChatPanel({
       scrollRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages, pendingCall, loading]);
+
+  const clearChat = () => {
+    setMessages([]);
+    setPendingCall(null);
+  };
 
   const sendMessage = async (
     newInput: string,
@@ -372,7 +380,7 @@ export default function ChatPanel({
   return (
     <>
       {/* Floating button */}
-      {!isOpen && (
+      {mode === "floating" && !isOpen && (
         <button
           onClick={() => setIsOpen(true)}
           className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-primary flex items-center justify-center shadow-xl animate-pulse-glow cursor-pointer transition-transform hover:scale-110"
@@ -382,8 +390,14 @@ export default function ChatPanel({
       )}
 
       {/* Chat window */}
-      {isOpen && (
-        <div className="fixed bottom-6 right-6 w-80 md:w-96 h-[520px] flex flex-col z-50 rounded-2xl overflow-hidden shadow-2xl border border-white/10 bg-card/95 backdrop-blur-xl">
+      {(isOpen || mode === "inline") && (
+        <div 
+          className={
+            mode === "floating" 
+              ? "fixed bottom-6 right-6 w-80 md:w-96 h-[520px] flex flex-col z-50 rounded-2xl overflow-hidden shadow-2xl border border-white/10 bg-card/95 backdrop-blur-xl"
+              : "w-full h-full flex flex-col rounded-2xl overflow-hidden border border-white/10 bg-card/50 backdrop-blur-md min-h-[500px]"
+          }
+        >
           {/* Header */}
           <div className="bg-primary px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-2.5">
@@ -397,12 +411,23 @@ export default function ChatPanel({
                 <p className="text-[10px] text-white/70">Powered by Gemini</p>
               </div>
             </div>
-            <button
-              className="w-7 h-7 rounded-lg hover:bg-white/10 flex items-center justify-center transition-colors cursor-pointer"
-              onClick={() => setIsOpen(false)}
-            >
-              <X className="w-4 h-4 text-white" />
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                className="w-7 h-7 rounded-lg hover:bg-white/10 flex items-center justify-center transition-colors cursor-pointer"
+                onClick={clearChat}
+                title="Clear chat"
+              >
+                <Trash2 className="w-4 h-4 text-white" />
+              </button>
+              {mode === "floating" && (
+                <button
+                  className="w-7 h-7 rounded-lg hover:bg-white/10 flex items-center justify-center transition-colors cursor-pointer"
+                  onClick={() => setIsOpen(false)}
+                >
+                  <X className="w-4 h-4 text-white" />
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Messages */}
@@ -540,5 +565,17 @@ export default function ChatPanel({
         </div>
       )}
     </>
+  );
+}
+
+export default function ChatPanel(props: {
+  context: "owner" | "visitor";
+  targetUserId?: string;
+  mode?: "floating" | "inline";
+}) {
+  return (
+    <ChatErrorBoundary>
+      <ChatPanelInner {...props} />
+    </ChatErrorBoundary>
   );
 }

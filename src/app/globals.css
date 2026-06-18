@@ -182,13 +182,27 @@
   animation: pulse-glow 2.5s ease-in-out infinite;
 }
 
-/* Slot card hover */
+/* Slot card styling */
 .slot-card {
   transition: all 0.2s ease;
 }
 .slot-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+}
+
+.slot-available {
+  border-color: rgba(59, 178, 240, 0.2);
+}
+
+.slot-booked {
+  opacity: 0.6;
+  background: rgba(255, 255, 255, 0.01);
+}
+
+.slot-selected {
+  box-shadow: 0 0 15px rgba(59, 178, 240, 0.2);
+  border-color: var(--status-upcoming);
 }
 
 /* Scrollbar styling */

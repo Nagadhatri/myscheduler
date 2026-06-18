@@ -183,8 +183,9 @@ export default function UserSchedulePage() {
 
   const handleBook = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!bookingSlot || bookReason.length < 10) {
-      toast.error("Please provide at least 10 characters for your reason.");
+    const wordCount = bookReason.trim().split(/\s+/).length;
+    if (!bookingSlot || wordCount < 25) {
+      toast.error("Please provide at least 25 words for your reason.");
       return;
     }
     setSubmitting(true);
@@ -263,15 +264,11 @@ export default function UserSchedulePage() {
             <p className="text-xs text-muted-foreground">{profile?.occupation ? `${profile.occupation} • ${profile.email}` : profile?.email}</p>
           </div>
         </div>
-        <Button variant="outline" className="border-white/10 hover:bg-white/5 text-xs gap-1.5" onClick={() => setLookupOpen(true)}>
-          <Search className="w-3.5 h-3.5" />
-          Track My Bookings
-        </Button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-        {/* Calendar */}
-        <div className="lg:col-span-2">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {/* Left Column: Calendar & Track Bookings */}
+        <div className="lg:col-span-4 space-y-8">
           <Card className="glass-card border-white/5">
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-lg">
@@ -291,11 +288,64 @@ export default function UserSchedulePage() {
               />
             </CardContent>
           </Card>
+
+          {/* Track Bookings Panel */}
+          <Card className="glass-card border-white/5">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Search className="w-5 h-5 text-primary" />
+                Track My Bookings
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleLookup} className="flex gap-2 mb-4">
+                <Input
+                  type="email"
+                  required
+                  placeholder="you@example.com"
+                  value={lookupEmail}
+                  onChange={(e) => setLookupEmail(e.target.value)}
+                  className="bg-white/5 border-white/10 text-xs"
+                />
+                <Button type="submit" disabled={searchingBookings} className="glow-primary flex-shrink-0 text-xs h-9">
+                  {searchingBookings ? "..." : "Search"}
+                </Button>
+              </form>
+
+              {lookupResults.length > 0 && (
+                <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
+                  {lookupResults.map((b) => (
+                    <div key={b.id} className="p-3 rounded-xl border border-white/5 bg-white/[0.02] space-y-2">
+                      <div className="flex items-center justify-between">
+                        <p className="font-semibold text-xs truncate mr-2">
+                          {b.schedule?.owner?.display_name || "Host"}
+                        </p>
+                        <Badge className={`text-[10px] ${
+                          b.booking_status === "Accepted" || b.booking_status === "Accepted with Remarks"
+                            ? "bg-[var(--status-completed)]/10 text-[var(--status-completed)] border-[var(--status-completed)]/20"
+                            : b.booking_status === "Rejected"
+                              ? "bg-[var(--status-cancelled)]/10 text-[var(--status-cancelled)] border-[var(--status-cancelled)]/20"
+                              : b.booking_status === "Rescheduled"
+                                ? "bg-[var(--status-rescheduled)]/10 text-[var(--status-rescheduled)] border-[var(--status-rescheduled)]/20"
+                                : "bg-primary/10 text-primary border-primary/20"
+                        }`}>
+                          {b.booking_status}
+                        </Badge>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">
+                        {b.schedule?.date} | {formatTime(b.schedule?.start_time)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Slots */}
-        <div className="lg:col-span-3">
-          <Card className="glass-card border-white/5">
+        {/* Middle Column: Available Slots */}
+        <div className="lg:col-span-4">
+          <Card className="glass-card border-white/5 h-full">
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-lg">
                 <Clock className="w-5 h-5 text-[var(--status-completed)]" />
@@ -355,6 +405,13 @@ export default function UserSchedulePage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Right Column: Chatbot */}
+        <div className="lg:col-span-4">
+          <div className="h-[600px]">
+            <ChatPanel context="visitor" targetUserId={userId} mode="inline" />
+          </div>
+        </div>
       </div>
 
       {/* Booking Dialog */}
@@ -376,7 +433,7 @@ export default function UserSchedulePage() {
               <Input required type="email" value={bookEmail} onChange={(e) => setBookEmail(e.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label>Reason (min 10 characters)</Label>
+              <Label>Reason (min 25 words)</Label>
               <Input required value={bookReason} onChange={(e) => setBookReason(e.target.value)} placeholder="I'd like to discuss..." />
             </div>
             <DialogFooter>
@@ -387,75 +444,6 @@ export default function UserSchedulePage() {
           </form>
         </DialogContent>
       </Dialog>
-
-      {/* Lookup Dialog */}
-      <Dialog open={lookupOpen} onOpenChange={setLookupOpen}>
-        <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle>Track Your Bookings</DialogTitle>
-            <DialogDescription>
-              Enter your email address to see the status of your scheduling requests.
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleLookup} className="flex gap-2 mt-2">
-            <Input
-              type="email"
-              required
-              placeholder="you@example.com"
-              value={lookupEmail}
-              onChange={(e) => setLookupEmail(e.target.value)}
-              className="bg-white/5 border-white/10"
-            />
-            <Button type="submit" disabled={searchingBookings} className="glow-primary flex-shrink-0">
-              {searchingBookings ? "Searching..." : "Search"}
-            </Button>
-          </form>
-
-          <ScrollArea className="flex-1 mt-4 max-h-[40vh] pr-2">
-            {lookupResults.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground text-sm">
-                No bookings found for this email.
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {lookupResults.map((b) => (
-                  <div key={b.id} className="p-4 rounded-xl border border-white/5 bg-white/[0.02] space-y-2">
-                    <div className="flex items-center justify-between">
-                      <p className="font-semibold text-sm">
-                        Meeting with {b.schedule?.owner?.display_name || "Host"}
-                      </p>
-                      <Badge className={
-                        b.booking_status === "Accepted" || b.booking_status === "Accepted with Remarks"
-                          ? "bg-[var(--status-completed)]/10 text-[var(--status-completed)] border-[var(--status-completed)]/20"
-                          : b.booking_status === "Rejected"
-                            ? "bg-[var(--status-cancelled)]/10 text-[var(--status-cancelled)] border-[var(--status-cancelled)]/20"
-                            : b.booking_status === "Rescheduled"
-                              ? "bg-[var(--status-rescheduled)]/10 text-[var(--status-rescheduled)] border-[var(--status-rescheduled)]/20"
-                              : "bg-primary/10 text-primary border-primary/20"
-                      }>
-                        {b.booking_status}
-                      </Badge>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      📅 {b.schedule?.date} | ⏰ {formatTime(b.schedule?.start_time)} – {formatTime(b.schedule?.end_time)}
-                    </p>
-                    <p className="text-xs">
-                      <strong>Reason:</strong> {b.description}
-                    </p>
-                    {b.remarks && (
-                      <p className="text-xs bg-white/5 p-2 rounded-lg text-primary border border-primary/10">
-                        <strong>Host Remarks:</strong> {b.remarks}
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </ScrollArea>
-        </DialogContent>
-      </Dialog>
-
-      <ChatPanel context="visitor" targetUserId={userId} />
     </div>
   );
 }
