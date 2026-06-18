@@ -27,7 +27,9 @@ import {
   CalendarPlus,
   User,
   ShieldAlert,
+  Search,
 } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import ChatPanel from "@/components/chatbot/ChatPanel";
 
 export default function PublicVisitorPage() {
@@ -47,6 +49,28 @@ export default function PublicVisitorPage() {
   const [bookEmail, setBookEmail] = useState("");
   const [bookReason, setBookReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  // Lookup dialog
+  const [lookupOpen, setLookupOpen] = useState(false);
+  const [lookupEmail, setLookupEmail] = useState("");
+  const [lookupResults, setLookupResults] = useState<any[]>([]);
+  const [searchingBookings, setSearchingBookings] = useState(false);
+
+  const handleLookup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!lookupEmail) return;
+    setSearchingBookings(true);
+    try {
+      const res = await fetch(`/api/my-bookings?email=${encodeURIComponent(lookupEmail)}`);
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setLookupResults(data.bookings || []);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to search bookings.");
+    } finally {
+      setSearchingBookings(false);
+    }
+  };
 
   // Load target profile (publicly accessible)
   useEffect(() => {
@@ -183,9 +207,15 @@ export default function PublicVisitorPage() {
             {profile.occupation ? `${profile.occupation} • ${profile.email}` : profile.email}
           </p>
         </div>
-        <Badge className="ml-auto bg-[var(--status-upcoming)]/10 text-[var(--status-upcoming)] border-[var(--status-upcoming)]/20 text-xs">
-          Public Scheduler
-        </Badge>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 ml-auto">
+          <Button variant="outline" className="border-white/10 hover:bg-white/5 text-xs gap-1.5" onClick={() => setLookupOpen(true)}>
+            <Search className="w-3.5 h-3.5" />
+            Track My Bookings
+          </Button>
+          <Badge className="bg-[var(--status-upcoming)]/10 text-[var(--status-upcoming)] border-[var(--status-upcoming)]/20 text-xs">
+            Public Scheduler
+          </Badge>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
@@ -298,6 +328,73 @@ export default function PublicVisitorPage() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Lookup Dialog */}
+      <Dialog open={lookupOpen} onOpenChange={setLookupOpen}>
+        <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Track Your Bookings</DialogTitle>
+            <DialogDescription>
+              Enter your email address to see the status of your scheduling requests.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleLookup} className="flex gap-2 mt-2">
+            <Input
+              type="email"
+              required
+              placeholder="you@example.com"
+              value={lookupEmail}
+              onChange={(e) => setLookupEmail(e.target.value)}
+              className="bg-white/5 border-white/10"
+            />
+            <Button type="submit" disabled={searchingBookings} className="glow-primary flex-shrink-0">
+              {searchingBookings ? "Searching..." : "Search"}
+            </Button>
+          </form>
+
+          <ScrollArea className="flex-1 mt-4 max-h-[40vh] pr-2">
+            {lookupResults.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground text-sm">
+                No bookings found for this email.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {lookupResults.map((b) => (
+                  <div key={b.id} className="p-4 rounded-xl border border-white/5 bg-white/[0.02] space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="font-semibold text-sm">
+                        Meeting with {b.schedule?.owner?.display_name || "Host"}
+                      </p>
+                      <Badge className={
+                        b.booking_status === "Accepted" || b.booking_status === "Accepted with Remarks"
+                          ? "bg-[var(--status-completed)]/10 text-[var(--status-completed)] border-[var(--status-completed)]/20"
+                          : b.booking_status === "Rejected"
+                            ? "bg-[var(--status-cancelled)]/10 text-[var(--status-cancelled)] border-[var(--status-cancelled)]/20"
+                            : b.booking_status === "Rescheduled"
+                              ? "bg-[var(--status-rescheduled)]/10 text-[var(--status-rescheduled)] border-[var(--status-rescheduled)]/20"
+                              : "bg-primary/10 text-primary border-primary/20"
+                      }>
+                        {b.booking_status}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      📅 {b.schedule?.date} | ⏰ {formatTime(b.schedule?.start_time)} – {formatTime(b.schedule?.end_time)}
+                    </p>
+                    <p className="text-xs">
+                      <strong>Reason:</strong> {b.description}
+                    </p>
+                    {b.remarks && (
+                      <p className="text-xs bg-white/5 p-2 rounded-lg text-primary border border-primary/10">
+                        <strong>Host Remarks:</strong> {b.remarks}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </ScrollArea>
         </DialogContent>
       </Dialog>
 

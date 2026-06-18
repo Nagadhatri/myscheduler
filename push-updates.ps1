@@ -8,7 +8,7 @@ git add --all
 $branch = (git rev-parse --abbrev-ref HEAD).Trim()
 Write-Host "Current branch detected: $branch" -ForegroundColor Yellow
 
-$commitMessage = "feat: implement public chatbot password reset, fix syntax error, and add public profile search API"
+$commitMessage = "feat: implement landing page role selection, visitor connection booking checks, and host rescheduling email notifications"
 Write-Host "Committing changes..." -ForegroundColor Cyan
 git commit -m $commitMessage
 

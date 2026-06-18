@@ -439,8 +439,6 @@ You: [call bookAppointment] "Your booking request has been submitted! You'll be 
     const modelsToTry = [GEMINI_MODEL];
     if (GEMINI_MODEL === "gemini-2.0-flash") {
       modelsToTry.push("gemini-2.0-flash-lite");
-      modelsToTry.push("gemini-2.5-flash");
-      modelsToTry.push("gemini-1.5-flash");
     } else {
       modelsToTry.push("gemini-2.0-flash");
       modelsToTry.push("gemini-2.0-flash-lite");
@@ -449,6 +447,7 @@ You: [call bookAppointment] "Your booking request has been submitted! You'll be 
     let response;
     let success = false;
     let lastError: any = null;
+    let hasQuotaError = false;
 
     for (const modelName of modelsToTry) {
       try {
@@ -472,6 +471,10 @@ You: [call bookAppointment] "Your booking request has been submitted! You'll be 
           error?.message?.includes("quota") || 
           error?.message?.includes("Quota");
           
+        if (isQuotaError) {
+          hasQuotaError = true;
+        }
+          
         const isModelNotFoundError =
           error?.status === 404 ||
           error?.message?.includes("not found") ||
@@ -488,6 +491,9 @@ You: [call bookAppointment] "Your booking request has been submitted! You'll be 
     }
 
     if (!success || !response) {
+      if (hasQuotaError) {
+        throw new Error("Gemini API rate limit exceeded. Please wait a minute before sending another message.");
+      }
       throw lastError || new Error("Failed to generate content with all fallback models.");
     }
 

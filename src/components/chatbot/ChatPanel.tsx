@@ -273,62 +273,28 @@ export default function ChatPanel({
         if (error) throw error;
         responseObj = { success: true, message: "Slot deleted." };
       } else if (name === "bookAppointment") {
-        // Create schedule + booking
         const targetId = targetUserId || args.owner_id;
         if (!targetId) throw new Error("No target user specified for booking.");
         
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) {
-          // Unauthenticated visitor -> post to public API
-          const res = await fetch("/api/book", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              userId: targetId,
-              date: args.date,
-              startTime: args.start_time,
-              endTime: args.end_time,
-              name: args.name,
-              email: args.email,
-              description: args.description,
-            }),
-          });
-          const resData = await res.json();
-          if (resData.error) throw new Error(resData.error);
-          responseObj = {
-            success: true,
-            message: "Booking request submitted successfully!",
-          };
-        } else {
-          const { data: scheduleData, error: scheduleError } = await supabase
-            .from("schedules")
-            .insert({
-              title: `Booking by ${args.name}`,
-              category: "Meeting",
-              date: args.date,
-              start_time: args.start_time,
-              end_time: args.end_time,
-              status: "Upcoming",
-              owner_id: targetId,
-            })
-            .select("id")
-            .single();
-          if (scheduleError) throw scheduleError;
-          const { error: bookingError } = await supabase
-            .from("bookings")
-            .insert({
-              schedule_id: scheduleData.id,
-              visitor_name: args.name,
-              visitor_email: args.email,
-              description: args.description,
-              booking_status: "Pending",
-            });
-          if (bookingError) throw bookingError;
-          responseObj = {
-            success: true,
-            message: "Booking request submitted successfully!",
-          };
-        }
+        const res = await fetch("/api/book", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId: targetId,
+            date: args.date,
+            startTime: args.start_time,
+            endTime: args.end_time,
+            name: args.name,
+            email: args.email,
+            description: args.description,
+          }),
+        });
+        const resData = await res.json();
+        if (resData.error) throw new Error(resData.error);
+        responseObj = {
+          success: true,
+          message: "Booking request submitted successfully!",
+        };
       } else if (name === "sendConnectionRequest") {
         const { data: userData } = await supabase.auth.getUser();
         if (!userData.user) throw new Error("Not authenticated");
@@ -339,55 +305,22 @@ export default function ChatPanel({
         if (error) throw error;
         responseObj = { success: true, message: "Connection request sent!" };
       } else if (name === "rescheduleSlot") {
-        // 1. Fetch old slot to copy details and check for bookings
-        const { data: oldSlot } = await supabase.from("schedules").select("*").eq("id", args.slot_id).single();
-        if (!oldSlot) throw new Error("Slot not found.");
-
-        const { data: booking } = await supabase
-          .from("bookings")
-          .select("*")
-          .eq("schedule_id", args.slot_id)
-          .maybeSingle();
-
-        // 2. Update old slot to Rescheduled
-        const { error: updateError } = await supabase
-          .from("schedules")
-          .update({ status: "Rescheduled" })
-          .eq("id", args.slot_id);
-        if (updateError) throw updateError;
-        
-        // 3. Insert new slot
-        const { data: newSlot, error: insertError } = await supabase
-          .from("schedules")
-          .insert({
-            title: oldSlot.title,
-            category: oldSlot.category,
-            description: oldSlot.description,
-            date: args.new_date,
-            start_time: args.new_start_time + ":00",
-            end_time: args.new_end_time + ":00",
-            owner_id: oldSlot.owner_id,
-            status: "Upcoming",
-          })
-          .select("id")
-          .single();
-        if (insertError) throw insertError;
-
-        let bookingMsg = "";
-        if (booking && newSlot) {
-          const { error: bookingError } = await supabase
-            .from("bookings")
-            .update({ schedule_id: newSlot.id, booking_status: "Rescheduled" })
-            .eq("id", booking.id);
-          if (bookingError) throw bookingError;
-          bookingMsg = ` Affected booking for visitor ${booking.visitor_name} (${booking.visitor_email}) was moved to the new slot and marked as Rescheduled.`;
-        }
-        
-        responseObj = { 
-          success: true, 
-          message: `Slot rescheduled successfully!${bookingMsg}`,
-          visitor_name: booking?.visitor_name || null,
-          visitor_email: booking?.visitor_email || null,
+        const res = await fetch("/api/reschedule", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            slotId: args.slot_id,
+            newDate: args.new_date,
+            newStartTime: args.new_start_time,
+            newEndTime: args.new_end_time,
+            reason: args.reason || "Rescheduled by owner via AI Assistant.",
+          }),
+        });
+        const resData = await res.json();
+        if (resData.error) throw new Error(resData.error);
+        responseObj = {
+          success: true,
+          message: resData.message || "Slot rescheduled successfully!",
         };
       } else if (name === "respondToBooking") {
         const { error } = await supabase

@@ -1,15 +1,14 @@
 import Link from "next/link";
-import { CalendarDays, Users, Clock, Sparkles, ArrowRight, Shield } from "lucide-react";
+import { CalendarDays, Users, Sparkles, ArrowRight, Shield, UserCheck, Settings } from "lucide-react";
 import ChatPanel from "@/components/chatbot/ChatPanel";
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-background relative">
+    <div className="min-h-screen bg-background relative flex flex-col justify-between">
       {/* Background gradient blobs */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
-        <div className="absolute top-1/2 -left-40 w-80 h-80 bg-[var(--status-upcoming)]/5 rounded-full blur-3xl" />
-        <div className="absolute -bottom-40 right-1/3 w-72 h-72 bg-[var(--status-completed)]/5 rounded-full blur-3xl" />
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
+        <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-[var(--status-upcoming)]/5 rounded-full blur-3xl" />
       </div>
 
       {/* Header */}
@@ -33,78 +32,77 @@ export default function LandingPage() {
         </div>
       </header>
 
-      {/* Hero */}
-      <section className="relative z-10 text-center py-24 px-6">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-xs text-primary mb-6">
-          <Sparkles className="w-3 h-3" />
-          Social Scheduling Platform
+      {/* Main Hero & Selection Section */}
+      <main className="relative z-10 flex-grow flex flex-col items-center justify-center px-6 py-12 max-w-5xl mx-auto w-full">
+        <div className="text-center mb-12 space-y-4">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-xs text-primary mb-2">
+            <Sparkles className="w-3 h-3" />
+            Welcome to MyScheduler
+          </div>
+          <h2 className="text-3xl md:text-5xl font-bold tracking-tight leading-tight">
+            Select Your <span className="gradient-text">Portal</span>
+          </h2>
+          <p className="text-sm md:text-base text-muted-foreground max-w-lg mx-auto">
+            Choose how you would like to proceed with MyScheduler today
+          </p>
         </div>
-        <h2 className="text-4xl md:text-6xl font-bold tracking-tight mb-4 max-w-3xl mx-auto leading-tight">
-          Schedule smarter,
-          <span className="gradient-text"> together</span>
-        </h2>
-        <p className="text-lg text-muted-foreground max-w-lg mx-auto mb-10">
-          Create your own scheduler. Connect with people. View and book appointments — all in one premium platform.
-        </p>
-        <div className="flex items-center justify-center gap-4">
-          <Link
-            href="/signup"
-            className="px-6 py-3 rounded-xl bg-primary text-primary-foreground font-medium glow-primary hover:opacity-90 transition-opacity inline-flex items-center gap-2"
-          >
-            Create Your Scheduler
-            <ArrowRight className="w-4 h-4" />
-          </Link>
-          <Link
-            href="/login"
-            className="px-6 py-3 rounded-xl border border-white/10 text-foreground font-medium hover:bg-white/5 transition-colors"
-          >
-            Sign In
-          </Link>
-        </div>
-      </section>
 
-      {/* Features */}
-      <section className="relative z-10 max-w-5xl mx-auto px-6 pb-24">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {[
-            {
-              icon: CalendarDays,
-              title: "Your Own Scheduler",
-              desc: "Create and manage your schedule with hourly slots from 5 AM to 11 PM. Add meetings, presentations, events, and more.",
-              color: "text-primary",
-              bg: "bg-primary/10",
-            },
-            {
-              icon: Users,
-              title: "Connect with People",
-              desc: "Search for friends and colleagues. Send connection requests. Once connected, view and book on each other's calendars.",
-              color: "text-[var(--status-completed)]",
-              bg: "bg-[var(--status-completed)]/10",
-            },
-            {
-              icon: Shield,
-              title: "Privacy First",
-              desc: "Your schedule is private by default. Only people you've accepted as connections can see your availability and book with you.",
-              color: "text-[var(--status-upcoming)]",
-              bg: "bg-[var(--status-upcoming)]/10",
-            },
-          ].map((feature, i) => (
-            <div
-              key={i}
-              className="glass-card border border-white/5 rounded-2xl p-6 space-y-4 slot-card"
-            >
-              <div className={`w-12 h-12 rounded-xl ${feature.bg} flex items-center justify-center`}>
-                <feature.icon className={`w-6 h-6 ${feature.color}`} />
+        {/* Portals Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-4xl">
+          {/* Visitor Card */}
+          <div className="glass-card border border-white/5 rounded-2xl p-8 space-y-6 flex flex-col justify-between hover:border-primary/20 hover:shadow-primary/5 hover:shadow-xl transition-all duration-300 group">
+            <div className="space-y-4">
+              <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <Users className="w-7 h-7 text-primary animate-pulse-glow" />
               </div>
-              <h3 className="font-semibold text-lg">{feature.title}</h3>
-              <p className="text-sm text-muted-foreground leading-relaxed">{feature.desc}</p>
+              <div className="space-y-2">
+                <h3 className="text-xl font-bold tracking-tight">I am a Visitor</h3>
+                <p className="text-xs font-semibold text-primary/80 uppercase tracking-wider">Book Meetings & Track Requests</p>
+              </div>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Search for scheduling profiles, check availability in real time, and submit booking requests. 
+                <span className="text-primary font-medium block mt-2">
+                  🔒 Note: You must be an accepted acquaintance (friend) of the person beforehand to request bookings.
+                </span>
+              </p>
             </div>
-          ))}
+            <Link href="/visit" className="pt-4 block">
+              <button className="w-full py-3.5 rounded-xl bg-white/5 border border-white/10 hover:bg-primary hover:text-primary-foreground hover:border-primary hover:glow-primary font-semibold text-sm transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer">
+                Enter Visitor Portal
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </Link>
+          </div>
+
+          {/* Owner Card */}
+          <div className="glass-card border border-white/5 rounded-2xl p-8 space-y-6 flex flex-col justify-between hover:border-[var(--status-upcoming)]/20 hover:shadow-[var(--status-upcoming)]/5 hover:shadow-xl transition-all duration-300 group">
+            <div className="space-y-4">
+              <div className="w-14 h-14 rounded-2xl bg-[var(--status-upcoming)]/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <Settings className="w-7 h-7 text-[var(--status-upcoming)]" />
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-xl font-bold tracking-tight">I am an Owner</h3>
+                <p className="text-xs font-semibold text-[var(--status-upcoming)] uppercase tracking-wider">Manage Schedule & Bookings</p>
+              </div>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Manage your available slots, review pending requests with custom status badges, and reschedule bookings.
+                <span className="text-[var(--status-upcoming)] font-medium block mt-2">
+                  📧 Notifications: Rescheduling a meeting automatically notifies visitors with rearranging options.
+                </span>
+              </p>
+            </div>
+            <Link href="/dashboard" className="pt-4 block">
+              <button className="w-full py-3.5 rounded-xl bg-white/5 border border-white/10 hover:bg-[var(--status-upcoming)] hover:text-white hover:border-[var(--status-upcoming)] hover:shadow-[var(--status-upcoming)]/20 hover:shadow-lg font-semibold text-sm transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer">
+                Enter Owner Dashboard
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </Link>
+          </div>
         </div>
-      </section>
+      </main>
 
       {/* Footer */}
-      <footer className="relative z-10 border-t border-white/5 py-8 text-center text-sm text-muted-foreground">
+      <footer className="relative z-10 border-t border-white/5 py-8 text-center text-sm text-muted-foreground bg-card/10">
         Built with ❤️ using Next.js, Supabase & Gemini AI
       </footer>
       <ChatPanel context="visitor" />

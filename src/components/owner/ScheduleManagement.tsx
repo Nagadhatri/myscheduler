@@ -75,6 +75,7 @@ export default function ScheduleManagement() {
   const [rescheduleStart, setRescheduleStart] = useState("");
   const [rescheduleEnd, setRescheduleEnd] = useState("");
   const [rescheduleDialogOpen, setRescheduleDialogOpen] = useState(false);
+  const [rescheduleReason, setRescheduleReason] = useState("");
   const [loading, setLoading] = useState(false);
 
   const supabase = createClient();
@@ -121,53 +122,27 @@ export default function ScheduleManagement() {
     setLoading(true);
 
     try {
-      // 1. Check for booking on old slot
-      const { data: booking } = await supabase
-        .from("bookings")
-        .select("*")
-        .eq("schedule_id", rescheduleId)
-        .maybeSingle();
+      const res = await fetch("/api/reschedule", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          slotId: rescheduleId,
+          newDate: rescheduleDate,
+          newStartTime: rescheduleStart,
+          newEndTime: rescheduleEnd,
+          reason: rescheduleReason || "No reason provided by the host.",
+        }),
+      });
 
-      // 2. Mark old slot as Rescheduled
-      await supabase.from("schedules").update({ status: "Rescheduled" }).eq("id", rescheduleId);
-
-      // 3. Get old slot info for context
-      const oldSlot = schedules.find(s => s.id === rescheduleId);
-
-      // 4. Create new slot
-      const { data: userData } = await supabase.auth.getUser();
-      const { data: newSlot, error } = await supabase
-        .from("schedules")
-        .insert({
-          title: oldSlot?.title || title,
-          category: oldSlot?.category || "Meeting",
-          description: oldSlot?.description || "",
-          date: rescheduleDate,
-          start_time: rescheduleStart + ":00",
-          end_time: rescheduleEnd + ":00",
-          status: "Upcoming",
-          owner_id: userData.user?.id,
-        })
-        .select("id")
-        .single();
-
-      if (error) throw error;
-
-      // 5. Update booking if it exists
-      if (booking && newSlot) {
-        await supabase
-          .from("bookings")
-          .update({ schedule_id: newSlot.id, booking_status: "Rescheduled" })
-          .eq("id", booking.id);
+      const data = await res.json();
+      if (res.status !== 200) {
+        throw new Error(data.error || "Failed to reschedule.");
       }
 
-      toast.success(
-        booking 
-          ? `Meeting with ${booking.visitor_name} rescheduled! ✅` 
-          : "Meeting rescheduled! ✅"
-      );
+      toast.success(data.message || "Meeting rescheduled! ✅");
       setRescheduleDialogOpen(false);
       setRescheduleId(null);
+      setRescheduleReason("");
       fetchSchedules();
     } catch (err: any) {
       toast.error(err.message);
@@ -439,6 +414,16 @@ export default function ScheduleManagement() {
                 <Label>New End Time</Label>
                 <Input type="time" required value={rescheduleEnd} onChange={(e) => setRescheduleEnd(e.target.value)} />
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Reason for Rescheduling (Will be emailed to the attendee)</Label>
+              <Input
+                required
+                placeholder="e.g. Urgent conflict came up, double booked..."
+                value={rescheduleReason}
+                onChange={(e) => setRescheduleReason(e.target.value)}
+                className="bg-white/5 border-white/10"
+              />
             </div>
             <DialogFooter>
               <Button type="submit" disabled={loading} className="glow-primary">
