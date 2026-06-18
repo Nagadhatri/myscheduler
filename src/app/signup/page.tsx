@@ -50,6 +50,24 @@ export default function SignupPage() {
     if (error) {
       toast.error(error.message);
     } else {
+      // Sync profile via server to bypass RLS issues
+      if (data.user) {
+        try {
+          await fetch("/api/sync-profile", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              id: data.user.id,
+              email: email,
+              display_name: name,
+              occupation: occupation,
+            }),
+          });
+        } catch (e) {
+          console.error("Failed to sync profile", e);
+        }
+      }
+
       if (data.session) {
         toast.success("Account created! Welcome aboard 🎉");
         router.push("/dashboard");

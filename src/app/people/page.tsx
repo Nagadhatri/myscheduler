@@ -74,15 +74,16 @@ export default function PeoplePage() {
     if (!searchQuery.trim() || !currentUserId) return;
     setSearching(true);
 
-    const { data } = await supabase
-      .from("profiles")
-      .select("*")
-      .or(`display_name.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%`)
-      .neq("id", currentUserId)
-      .limit(10);
-
-    setSearchResults(data || []);
-    setSearching(false);
+    try {
+      const res = await fetch(`/api/search-people?query=${encodeURIComponent(searchQuery)}`);
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setSearchResults((data.users || []).filter((u: any) => u.id !== currentUserId));
+    } catch (err: any) {
+      toast.error(err.message || "Failed to search profiles.");
+    } finally {
+      setSearching(false);
+    }
   };
 
   const sendRequest = async (receiverId: string) => {
