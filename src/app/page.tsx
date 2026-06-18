@@ -62,7 +62,7 @@ export default function LandingPage() {
               <p className="text-sm text-muted-foreground leading-relaxed">
                 Search for scheduling profiles, check availability in real time, and submit booking requests. 
                 <span className="text-primary font-medium block mt-2">
-                  🔒 Note: You must be an accepted acquaintance (friend) of the person beforehand to request bookings.
+                  🌍 Open to everyone! Non-acquaintances can also request bookings — the owner will be notified to approve.
                 </span>
               </p>
             </div>

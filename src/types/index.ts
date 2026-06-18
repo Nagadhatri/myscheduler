@@ -1,6 +1,6 @@
 export type ScheduleCategory = 'Meeting' | 'Presentation' | 'Event Participation' | 'Learning' | 'Other';
 export type ScheduleStatus = 'Upcoming' | 'Completed' | 'Rescheduled' | 'Cancelled';
-export type BookingStatusType = 'Pending' | 'Accepted' | 'Accepted with Remarks' | 'Rejected' | 'Cancelled' | 'Rescheduled';
+export type BookingStatusType = 'Pending' | 'Pending Approval' | 'Accepted' | 'Accepted with Remarks' | 'Rejected' | 'Cancelled' | 'Rescheduled';
 export type ConnectionStatus = 'pending' | 'accepted' | 'rejected';
 
 export interface Profile {

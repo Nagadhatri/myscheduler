@@ -18,46 +18,26 @@ export async function POST(req: Request) {
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Verify acquaintance status: visitor must be connected to the host
-    const { data: visitorProfile, error: profileError } = await supabase
+    // Check if visitor is a registered user
+    const { data: visitorProfile } = await supabase
       .from("profiles")
       .select("id")
       .eq("email", email)
       .maybeSingle();
 
-    if (profileError) {
-      console.error("Profile query error:", profileError);
-      return NextResponse.json({ error: "Failed to verify visitor credentials" }, { status: 500 });
-    }
+    // Determine if visitor is an acquaintance (connected to the owner)
+    let isConnected = false;
+    if (visitorProfile) {
+      const { data: connections } = await supabase
+        .from("connections")
+        .select("requester_id, receiver_id")
+        .eq("status", "accepted")
+        .or(`requester_id.eq.${visitorProfile.id},receiver_id.eq.${visitorProfile.id}`);
 
-    if (!visitorProfile) {
-      return NextResponse.json(
-        { error: "Only registered acquaintances can book appointments. Please ask the owner to send you a connection request or register first." },
-        { status: 403 }
-      );
-    }
-
-    const { data: connections, error: connError } = await supabase
-      .from("connections")
-      .select("requester_id, receiver_id")
-      .eq("status", "accepted")
-      .or(`requester_id.eq.${visitorProfile.id},receiver_id.eq.${visitorProfile.id}`);
-
-    if (connError) {
-      console.error("Connection query error:", connError);
-      return NextResponse.json({ error: "Failed to verify connection status" }, { status: 500 });
-    }
-
-    const isConnected = (connections || []).some(
-      (c: any) =>
-        (c.requester_id === visitorProfile.id && c.receiver_id === userId) ||
-        (c.requester_id === userId && c.receiver_id === visitorProfile.id)
-    );
-
-    if (!isConnected) {
-      return NextResponse.json(
-        { error: "You must be an accepted acquaintance/friend of the host beforehand to book a meeting. Please request a connection first." },
-        { status: 403 }
+      isConnected = (connections || []).some(
+        (c: any) =>
+          (c.requester_id === visitorProfile.id && c.receiver_id === userId) ||
+          (c.requester_id === userId && c.receiver_id === visitorProfile.id)
       );
     }
 
@@ -74,7 +54,7 @@ export async function POST(req: Request) {
 
     const isBooked = (existingSchedules || []).some((s: any) =>
       s.bookings?.some((b: any) =>
-        ["Accepted", "Accepted with Remarks", "Pending"].includes(b.booking_status)
+        ["Accepted", "Accepted with Remarks", "Pending", "Pending Approval"].includes(b.booking_status)
       )
     );
 
@@ -99,7 +79,11 @@ export async function POST(req: Request) {
 
     if (scheduleError) throw scheduleError;
 
-    // 3. Create the booking request
+    // 3. Set booking status based on connection
+    // If connected → "Pending" (owner reviews normally)
+    // If NOT connected → "Pending Approval" (owner must first approve the stranger)
+    const bookingStatus = isConnected ? "Pending" : "Pending Approval";
+
     const { error: bookingError } = await supabase
       .from("bookings")
       .insert({
@@ -107,7 +91,7 @@ export async function POST(req: Request) {
         visitor_name: name,
         visitor_email: email,
         description,
-        booking_status: "Pending",
+        booking_status: bookingStatus,
       });
 
     if (bookingError) throw bookingError;
@@ -120,22 +104,39 @@ export async function POST(req: Request) {
       .single();
 
     if (!ownerError && ownerProfile) {
-      // Send notification to owner
-      await sendEmailWebhook({
-        to: ownerProfile.email,
-        subject: `New Booking Request from ${name}`,
-        body: `Hi ${ownerProfile.display_name},\n\nYou have received a new booking request from ${name} (${email}).\n\nMeeting Details:\n- Date: ${date}\n- Time: ${startTime} - ${endTime}\n- Description: ${description}\n\nPlease log in to your MyScheduler Dashboard to accept or reject this request.\n\nBest,\nMyScheduler Team`,
-      });
+      if (isConnected) {
+        // Normal notification for acquaintances
+        await sendEmailWebhook({
+          to: ownerProfile.email,
+          subject: `New Booking Request from ${name}`,
+          body: `Hi ${ownerProfile.display_name},\n\nYou have received a new booking request from ${name} (${email}).\n\nMeeting Details:\n- Date: ${date}\n- Time: ${startTime} - ${endTime}\n- Description: ${description}\n\nPlease log in to your MyScheduler Dashboard to accept or reject this request.\n\nBest,\nMyScheduler Team`,
+        });
+      } else {
+        // Special notification for non-acquaintances — owner must approve first
+        await sendEmailWebhook({
+          to: ownerProfile.email,
+          subject: `⚠️ Booking Request from Unknown Person: ${name}`,
+          body: `Hi ${ownerProfile.display_name},\n\n⚠️ Someone who is NOT in your contacts is requesting to book a slot with you.\n\nRequester: ${name} (${email})\n\nMeeting Details:\n- Date: ${date}\n- Time: ${startTime} - ${endTime}\n- Description: ${description}\n\nThis person is not yet your acquaintance. Please log in to your MyScheduler Dashboard to:\n✅ APPROVE — Allow this person to book with you\n❌ REJECT — Decline the request\n\nBest,\nMyScheduler Team`,
+        });
+      }
 
       // Send confirmation to visitor
+      const statusMessage = isConnected
+        ? "Your booking request has been submitted successfully!"
+        : "Your booking request has been submitted. Since you are not yet connected with this person, they will need to approve your request first.";
+
       await sendEmailWebhook({
         to: email,
         subject: `Booking Request Submitted - MyScheduler`,
-        body: `Hi ${name},\n\nYour booking request with ${ownerProfile.display_name} has been submitted successfully!\n\nMeeting Details:\n- Date: ${date}\n- Time: ${startTime} - ${endTime}\n- Description: ${description}\n\nYou will receive another email once the host responds to your request.\n\nBest,\nMyScheduler Team`,
+        body: `Hi ${name},\n\n${statusMessage}\n\nMeeting Details:\n- Date: ${date}\n- Time: ${startTime} - ${endTime}\n- Description: ${description}\n\nYou will receive another email once the host responds to your request.\n\nBest,\nMyScheduler Team`,
       });
     }
 
-    return NextResponse.json({ success: true, message: "Booking request submitted successfully" });
+    const successMessage = isConnected
+      ? "Booking request submitted successfully!"
+      : "Booking request submitted! Since you're not yet connected with this person, they'll need to approve your request first.";
+
+    return NextResponse.json({ success: true, message: successMessage });
   } catch (error: any) {
     console.error("Public booking API error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
