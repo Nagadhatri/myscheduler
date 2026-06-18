@@ -20,29 +20,100 @@ import Link from "next/link";
 import ChatPanel from "@/components/chatbot/ChatPanel";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const router = useRouter();
-  const supabase = createClient();
+  const [loginError, setLoginError] = useState('');
+  const [emailResent, setEmailResent] = useState(false);
+
+  const resendVerification = async () => {
+    try {
+      const normalizedEmail = email.trim().toLowerCase();
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: normalizedEmail,
+      });
+      if (error) {
+        toast.error(error.message);
+      } else {
+        toast.success('Verification email resent! Check your inbox.');
+        setEmailResent(true);
+      }
+    } catch (e) {
+      toast.error('Failed to resend verification email.');
+    }
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setLoginError('');
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    // Normalize email
+    const normalizedEmail = email.trim().toLowerCase();
+    const { error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
     setLoading(false);
 
     if (error) {
-      if (error.message.toLowerCase().includes("invalid login credentials")) {
-        toast.error("Invalid login credentials. If you just signed up, please make sure you verified your account by clicking the link sent to your email!");
+      const errMsg = error.message.toLowerCase();
+      if (errMsg.includes('invalid login credentials')) {
+        toast.error('Invalid login credentials. If you just signed up, please verify your email.');
+      } else if (errMsg.includes('email not confirmed') || errMsg.includes('email not verified')) {
+        setLoginError('email_not_verified');
+        toast.error('Your email is not verified. Please check your inbox.');
       } else {
         toast.error(error.message);
       }
     } else {
-      toast.success("Welcome back!");
-      router.push("/dashboard");
+      toast.success('Welcome back!');
+      router.push('/dashboard');
+    }
+  };
+
+  // ... existing JSX ...
+  return (
+    <div className="min-h-screen flex items-center justify-center p-4 relative">
+      {/* ... */}
+      <form onSubmit={handleLogin}>
+        {/* existing fields */}
+        {/* after form submit button */}
+        <CardFooter className="flex flex-col gap-3">
+          <Button type="submit" className="w-full glow-primary" disabled={loading}>
+            {loading ? 'Signing in...' : 'Sign In'}
+          </Button>
+          {loginError === 'email_not_verified' && !emailResent && (
+            <Button variant="outline" className="w-full" onClick={resendVerification}>
+              Resend verification email
+            </Button>
+          )}
+          <p className="text-sm text-muted-foreground">
+            Don&apos;t have an account?{' '}
+            <Link href="/signup" className="text-primary hover:underline">Sign up</Link>
+          </p>
+        </CardFooter>
+      </form>
+    </div>
+  );
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    // Normalize email
+    const normalizedEmail = email.trim().toLowerCase();
+    const { error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
+    setLoading(false);
+
+    if (error) {
+      const errMsg = error.message.toLowerCase();
+      if (errMsg.includes('invalid login credentials')) {
+        toast.error('Invalid login credentials. If you just signed up, please verify your email.');
+      } else if (errMsg.includes('email not confirmed') || errMsg.includes('email not verified')) {
+        toast.error('Your email is not verified. Please check your inbox.');
+        // Show resend verification button
+        // (Button added in JSX below)
+      } else {
+        toast.error(error.message);
+      }
+    } else {
+      toast.success('Welcome back!');
+      router.push('/dashboard');
     }
   };
 
