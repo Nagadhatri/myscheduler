@@ -217,7 +217,7 @@ export default function PublicVisitorPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Left Column: Calendar & Track Bookings */}
-        <div className="lg:col-span-4 space-y-8">
+        <div className="lg:col-span-3 space-y-8">
           <Card className="glass-card border-white/5">
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-lg">
@@ -293,7 +293,7 @@ export default function PublicVisitorPage() {
         </div>
 
         {/* Middle Column: Available Slots */}
-        <div className="lg:col-span-4">
+        <div className="lg:col-span-5">
           <Card className="glass-card border-white/5 h-full">
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center justify-between text-lg">
@@ -316,7 +316,7 @@ export default function PublicVisitorPage() {
                   <p>No available slots for this date.</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="flex flex-col gap-3">
                   {availableSlots.map((slot) => (
                     <div
                       key={slot.start_time}
