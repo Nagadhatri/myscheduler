@@ -37,7 +37,7 @@ export default function SignupPage() {
     }
     setLoading(true);
 
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -50,8 +50,16 @@ export default function SignupPage() {
     if (error) {
       toast.error(error.message);
     } else {
-      toast.success("Account created! Welcome aboard 🎉");
-      router.push("/dashboard");
+      if (data.session) {
+        toast.success("Account created! Welcome aboard 🎉");
+        router.push("/dashboard");
+      } else {
+        toast.info(
+          "Account created! Please check your email inbox to verify your account before logging in.",
+          { duration: 8000 }
+        );
+        router.push("/login");
+      }
     }
   };
 
