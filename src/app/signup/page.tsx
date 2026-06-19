@@ -15,7 +15,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { toast } from "sonner";
-import { UserPlus, Mail, Lock, User, Eye, EyeOff } from "lucide-react";
+import { UserPlus, Mail, Lock, User, Eye, EyeOff, CheckCircle, ArrowRight, MailOpen } from "lucide-react";
 import Link from "next/link";
 import ChatPanel from "@/components/chatbot/ChatPanel";
 
@@ -26,6 +26,7 @@ export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [occupation, setOccupation] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(false);
   const router = useRouter();
   const supabase = createClient();
 
@@ -72,14 +73,62 @@ export default function SignupPage() {
         toast.success("Account created! Welcome aboard 🎉");
         router.push("/dashboard");
       } else {
-        toast.info(
-          "Account created! Please check your email inbox to verify your account before logging in.",
-          { duration: 8000 }
-        );
-        router.push("/login");
+        setShowConfirmation(true);
       }
     }
   };
+
+  if (showConfirmation) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 relative">
+        <div className="fixed inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-1/3 right-1/4 w-96 h-96 bg-[var(--status-completed)]/5 rounded-full blur-3xl" />
+          <div className="absolute bottom-1/4 left-1/4 w-80 h-80 bg-primary/5 rounded-full blur-3xl" />
+        </div>
+
+        <Card className="w-full max-w-md glass-card border-white/10 relative z-10">
+          <CardHeader className="text-center pb-2">
+            <div className="w-16 h-16 rounded-2xl bg-[var(--status-completed)]/10 border border-[var(--status-completed)]/20 flex items-center justify-center mx-auto mb-4">
+              <MailOpen className="w-8 h-8 text-[var(--status-completed)]" />
+            </div>
+            <CardTitle className="text-2xl font-bold gradient-text">
+              Check Your Email! 📧
+            </CardTitle>
+            <CardDescription className="mt-3 text-sm leading-relaxed">
+              Your account has been created successfully!
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="text-center space-y-4">
+            <div className="bg-primary/5 border border-primary/10 rounded-xl p-4 space-y-3">
+              <div className="flex items-center gap-3 text-left">
+                <CheckCircle className="w-5 h-5 text-[var(--status-completed)] flex-shrink-0" />
+                <p className="text-sm">We sent a confirmation link to <strong className="text-primary">{email}</strong></p>
+              </div>
+              <div className="flex items-center gap-3 text-left">
+                <ArrowRight className="w-5 h-5 text-primary flex-shrink-0" />
+                <p className="text-sm">Open the email and <strong>click the confirmation link</strong> to activate your account</p>
+              </div>
+              <div className="flex items-center gap-3 text-left">
+                <ArrowRight className="w-5 h-5 text-primary flex-shrink-0" />
+                <p className="text-sm">Then come back here and <strong>Sign In</strong> with your credentials</p>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              💡 Can't find the email? Check your <strong>spam/junk folder</strong>. The email is from Supabase.
+            </p>
+          </CardContent>
+          <CardFooter className="flex flex-col gap-3">
+            <Link href="/login" className="w-full">
+              <Button className="w-full glow-primary">
+                <Mail className="w-4 h-4 mr-2" />
+                Go to Login
+              </Button>
+            </Link>
+          </CardFooter>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative">

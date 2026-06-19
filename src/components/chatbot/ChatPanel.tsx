@@ -408,7 +408,7 @@ function ChatPanelInner({
                 <p className="text-sm font-semibold text-white">
                   AI Assistant
                 </p>
-                <p className="text-[10px] text-white/70">Powered by Gemini</p>
+                <p className="text-[10px] text-white/70">Smart Navigator</p>
               </div>
             </div>
             <div className="flex items-center gap-1">
