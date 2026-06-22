@@ -36,6 +36,9 @@ export default function LoginPage() {
       const { error } = await supabase.auth.resend({
         type: "signup",
         email: normalizedEmail,
+        options: {
+          emailRedirectTo: `${window.location.origin}/login`,
+        },
       });
       if (error) {
         toast.error(error.message);

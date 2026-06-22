@@ -43,6 +43,7 @@ export default function SignupPage() {
       password,
       options: {
         data: { display_name: name, occupation },
+        emailRedirectTo: `${window.location.origin}/login`,
       },
     });
 
