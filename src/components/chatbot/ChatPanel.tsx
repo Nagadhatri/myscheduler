@@ -151,14 +151,18 @@ function ChatPanelInner({
 
     try {
       const lastMsg = historyToPass[historyToPass.length - 1];
+      const isFunction = lastMsg?.role === "function";
+      
+      const payload = {
+        history: isFunction ? historyToPass : historyToPass.slice(0, -1),
+        message: isFunction ? JSON.stringify(lastMsg.response || {}) : (lastMsg?.text || ""),
+        context,
+      };
+
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          history: historyToPass.slice(0, -1),
-          message: lastMsg?.text || "",
-          context,
-        }),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
