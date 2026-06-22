@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { genAI, GEMINI_MODEL } from "@/lib/gemini";
 
 /* ─────────────────────────────────────────────────────────
  *  Smart Local Chatbot Engine — NO external API needed
@@ -158,7 +159,7 @@ function detectIntent(text: string): Intent {
     return "delete_slot";
 
   // Find people
-  if (/\b(find|search|look.*for|discover).*(people|user|person|someone)\b/.test(t))
+  if (/\b(find|search|look.*for|discover)\b/i.test(t) && !/\b(slot|time|hour|appointment|meeting|schedule)\b/i.test(t))
     return "find_people";
 
   // Connect
@@ -264,7 +265,7 @@ function buildOwnerResponse(intent: Intent, text: string, history: any[]): any {
       };
 
     case "find_people": {
-      const query = text.replace(/\b(find|search|look\s*for|discover|people|user|person|someone|please|can you)\b/gi, "").trim();
+      const query = text.replace(/\b(find|search|look\s*for|discover|people|user|person|someone|please|can you|for|about)\b/gi, "").trim();
       if (query.length > 1) {
         return {
           type: "function_call",
@@ -406,7 +407,7 @@ function buildVisitorResponse(intent: Intent, text: string, history: any[]): any
     }
 
     case "find_people": {
-      const query = text.replace(/\b(find|search|look\s*for|discover|people|user|person|someone|please|can you)\b/gi, "").trim();
+      const query = text.replace(/\b(find|search|look\s*for|discover|people|user|person|someone|please|can you|for|about)\b/gi, "").trim();
       if (query.length > 1) {
         return {
           type: "function_call",
@@ -763,27 +764,321 @@ function formatFunctionResult(name: string, response: any): string {
 }
 
 // ── Main API Handler ─────────────────────────────────────
+
+
+const OWNER_TOOLS = [
+  {
+    name: "getTodaySchedule",
+    description: "Get the owner's schedule for today or a specific date.",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        date: { type: "string" as const, description: "Optional date in YYYY-MM-DD format. Defaults to today if not provided." },
+      },
+    },
+  },
+  {
+    name: "queryBookings",
+    description: "Query pending booking requests that need action, or all bookings.",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        status: { type: "string" as const, description: "Filter by status: 'Pending', 'Accepted', 'Rejected', or 'all'. Defaults to 'Pending'." },
+      },
+    },
+  },
+  {
+    name: "addSlot",
+    description: "Add a new schedule slot to the owner's calendar.",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        title: { type: "string" as const },
+        date: { type: "string" as const, description: "Date in YYYY-MM-DD format" },
+        start_time: { type: "string" as const, description: "Start time in HH:mm format" },
+        end_time: { type: "string" as const, description: "End time in HH:mm format" },
+        category: { type: "string" as const, enum: ["Meeting", "Presentation", "Event Participation", "Learning", "Other"] },
+        description: { type: "string" as const, description: "Optional description" },
+      },
+      required: ["title", "date", "start_time", "end_time", "category"],
+    },
+  },
+  {
+    name: "rescheduleSlot",
+    description: "Move an existing schedule slot to a new date/time. Marks the old slot as 'Rescheduled' and creates a new 'Upcoming' slot.",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        slot_id: { type: "string" as const, description: "The ID of the schedule to reschedule" },
+        new_date: { type: "string" as const, description: "New date in YYYY-MM-DD format" },
+        new_start_time: { type: "string" as const, description: "New start time in HH:mm format" },
+        new_end_time: { type: "string" as const, description: "New end time in HH:mm format" },
+      },
+      required: ["slot_id", "new_date", "new_start_time", "new_end_time"],
+    },
+  },
+  {
+    name: "deleteSlot",
+    description: "Delete a schedule slot by its ID.",
+    parameters: {
+      type: "object" as const,
+      properties: { id: { type: "string" as const } },
+      required: ["id"],
+    },
+  },
+  {
+    name: "respondToBooking",
+    description: "Accept, reject, or add remarks to a pending booking request.",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        booking_id: { type: "string" as const },
+        action: { type: "string" as const, enum: ["Accepted", "Accepted with Remarks", "Rejected"] },
+        remarks: { type: "string" as const, description: "Optional message to send to the visitor" },
+      },
+      required: ["booking_id", "action"],
+    },
+  },
+  {
+    name: "searchPeople",
+    description: "Search for other users by name or email to connect with them. If query is omitted or empty, it returns a general list of suggested users on the platform.",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        query: { type: "string" as const, description: "Optional name or email to search for" },
+      },
+    },
+  },
+  {
+    name: "sendConnectionRequest",
+    description: "Send a connection request to another user by their ID.",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        receiver_id: { type: "string" as const, description: "The ID of the user to connect with" },
+      },
+      required: ["receiver_id"],
+    },
+  },
+  {
+    name: "getConnections",
+    description: "Get the user's connections (pending, accepted, or rejected).",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        status: { type: "string" as const, description: "Optional filter by status: 'pending', 'accepted', 'rejected'. If omitted, returns all." },
+      },
+    },
+  },
+  {
+    name: "getCurrentUser",
+    description: "Get the profile details of the currently logged-in user (such as name, email, occupation). Use this when the user asks 'who am I?', 'what is my occupation?', or 'what is my profile?'.",
+    parameters: {
+      type: "object" as const,
+      properties: {},
+    },
+  },
+  {
+    name: "navigateToPage",
+    description: "Navigate/redirect the user to a specific page on the website. Use this when the user explicitly asks to go to a page (like '/dashboard', '/people', '/login', '/signup', or '/schedule/[userId]'), or gives permission to be redirected.",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        path: { type: "string" as const, description: "The relative path to navigate to (e.g., '/people', '/dashboard', '/login', '/schedule/some-user-id')" },
+      },
+      required: ["path"],
+    },
+  },
+];
+
+const VISITOR_TOOLS = [
+  {
+    name: "getAvailableSlots",
+    description: "Get available 1-hour time slots for a specific date. Returns slots from 5 AM to 11 PM that are not yet booked.",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        date: { type: "string" as const, description: "Date in YYYY-MM-DD format" },
+      },
+      required: ["date"],
+    },
+  },
+  {
+    name: "bookAppointment",
+    description: "Book an appointment at a specific time slot. Creates a pending booking request that the schedule owner will review.",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        name: { type: "string" as const, description: "Visitor's full name" },
+        email: { type: "string" as const, description: "Visitor's email address" },
+        date: { type: "string" as const, description: "Date in YYYY-MM-DD format" },
+        start_time: { type: "string" as const, description: "Start time in HH:mm:ss format (e.g., 10:00:00)" },
+        end_time: { type: "string" as const, description: "End time in HH:mm:ss format (e.g., 11:00:00)" },
+        description: { type: "string" as const, description: "Reason for the meeting (must be at least 25 words)" },
+      },
+      required: ["name", "email", "date", "start_time", "end_time", "description"],
+    },
+  },
+  {
+    name: "checkBookingStatus",
+    description: "Check the status of bookings by email address. Shows whether bookings are pending, accepted, rejected, etc.",
+    parameters: {
+      type: "object" as const,
+      properties: { email: { type: "string" as const } },
+      required: ["email"],
+    },
+  },
+  {
+    name: "searchPeople",
+    description: "Search for other users by name or email to connect with them. If query is omitted or empty, it returns a general list of suggested users on the platform.",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        query: { type: "string" as const, description: "Optional name or email to search for" },
+      },
+    },
+  },
+  {
+    name: "sendConnectionRequest",
+    description: "Send a connection request to another user by their ID.",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        receiver_id: { type: "string" as const, description: "The ID of the user to connect with" },
+      },
+      required: ["receiver_id"],
+    },
+  },
+  {
+    name: "getConnections",
+    description: "Get the user's connections (pending, accepted, or rejected).",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        status: { type: "string" as const, description: "Optional filter by status: 'pending', 'accepted', 'rejected'. If omitted, returns all." },
+      },
+    },
+  },
+  {
+    name: "getCurrentUser",
+    description: "Get the profile details of the currently logged-in user (such as name, email, occupation). Use this when the user asks 'who am I?', 'what is my occupation?', or 'what is my profile?'.",
+    parameters: {
+      type: "object" as const,
+      properties: {},
+    },
+  },
+  {
+    name: "getPageOwner",
+    description: "Get the profile details of the user whose schedule page the visitor is currently viewing (name, email, occupation). Use this when the visitor asks 'whose schedule is this?', 'who is the owner?', or 'what is the owner's occupation?'.",
+    parameters: {
+      type: "object" as const,
+      properties: {},
+    },
+  },
+  {
+    name: "navigateToPage",
+    description: "Navigate/redirect the user to a specific page on the website. Use this when the user explicitly asks to go to a page (like '/dashboard', '/people', '/login', '/signup', or '/schedule/[userId]'), or gives permission to be redirected.",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        path: { type: "string" as const, description: "The relative path to navigate to (e.g., '/people', '/dashboard', '/login', '/schedule/some-user-id')" },
+      },
+      required: ["path"],
+    },
+  },
+  {
+    name: "requestPasswordReset",
+    description: "Request a password reset link for a user's email address. Use this when the user says they forgot their password, and you have confirmed their email address.",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        email: { type: "string" as const, description: "The email address of the account to reset" },
+      },
+      required: ["email"],
+    },
+  },
+];
+
+
 export async function POST(req: Request) {
   try {
-    const { history, message, context } = await req.json();
+    const body = await req.json();
+    const { history, message, context } = body;
 
-    // Check if last message in history is a function result — format it
-    const lastHistoryMsg = history?.[history.length - 1];
-    if (lastHistoryMsg?.role === "function" && lastHistoryMsg?.name && lastHistoryMsg?.response) {
-      const formattedText = formatFunctionResult(lastHistoryMsg.name, lastHistoryMsg.response);
-      return NextResponse.json({ type: "text", text: formattedText });
+    // Try Gemini First if available
+    let geminiFailed = false;
+    if (genAI) {
+      try {
+        const PLATFORM_KNOWLEDGE = `# MyScheduler Platform Knowledge
+## What is MyScheduler?
+MyScheduler is a social scheduling platform where users can schedule meetings, view availability, and connect.
+## Current Date: ${today()} (${dayName()})`;
+        
+        const ownerSystemInstruction = PLATFORM_KNOWLEDGE + "\n\nYour Role: You are the AI assistant on the OWNER'S DASHBOARD. Use tools to manage schedule and answer questions.";
+        const visitorSystemInstruction = PLATFORM_KNOWLEDGE + "\n\nYour Role: You are the AI assistant for VISITORS. Help them find slots and book appointments using tools.";
+        
+        const systemInstruction = context === "owner" ? ownerSystemInstruction : visitorSystemInstruction;
+        const tools = context === "owner" ? OWNER_TOOLS : VISITOR_TOOLS;
+
+        const contents = (history || []).map((msg: any) => {
+          if (msg.role === "user") return { role: "user", parts: [{ text: msg.text || "" }] };
+          if (msg.role === "model") {
+            if (msg.functionCall) return { role: "model", parts: [{ functionCall: msg.functionCall }] };
+            return { role: "model", parts: [{ text: msg.text || "" }] };
+          }
+          if (msg.role === "function") {
+            return { role: "user", parts: [{ functionResponse: { name: msg.name, response: msg.response } }] };
+          }
+          return { role: "user", parts: [{ text: msg.text || "" }] };
+        });
+
+        if (message) {
+          contents.push({ role: "user", parts: [{ text: message }] });
+        }
+
+        const modelsToTry = [GEMINI_MODEL, "gemini-2.5-flash", "gemini-1.5-flash"];
+        let response;
+        for (const modelName of modelsToTry) {
+          try {
+            response = await genAI.models.generateContent({
+              model: modelName,
+              contents,
+              config: {
+                systemInstruction,
+                // @ts-ignore
+                tools: [{ functionDeclarations: tools }],
+              },
+            });
+            break;
+          } catch (e: any) {
+             if (modelName === modelsToTry[modelsToTry.length - 1]) throw e;
+          }
+        }
+        
+        if (response) {
+          const call = response.functionCalls?.[0];
+          if (call) {
+            return NextResponse.json({
+              type: "function_call",
+              functionCall: { name: call.name, args: call.args },
+            });
+          }
+          return NextResponse.json({
+            type: "text",
+            text: response.text || "I'm here to help!"
+          });
+        }
+      } catch (geminiError) {
+        console.warn("Gemini API failed, falling back to local engine:", geminiError);
+        geminiFailed = true;
+      }
+    } else {
+       geminiFailed = true;
     }
 
-    // Check for conversational follow-ups first
-    const followUp = detectFollowUp(message || "", history || []);
-    if (followUp) {
-      return NextResponse.json(followUp);
-    }
-
-    // Detect intent and generate response
+    // Fallback to local intent detection
     const intent = detectIntent(message || "");
-    const response =
-      context === "owner"
+    const response = context === "owner"
         ? buildOwnerResponse(intent, message || "", history || [])
         : buildVisitorResponse(intent, message || "", history || []);
 
