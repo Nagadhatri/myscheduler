@@ -122,8 +122,8 @@ function detectIntent(text: string): Intent {
   if (/\b(who am i|my profile|my name|my email|my occupation|my account)\b/.test(t))
     return "who_am_i";
 
-  // Whose page
-  if (/\b(whose|who is|who'?s).*(page|schedule|profile|calendar|this)\b/.test(t))
+  // Whose page / schedule of someone
+  if (/\b(whose|who is|who'?s).*(page|schedule|profile|calendar|this)\b/.test(t) || /\b(schedule|calendar)\s+(of|for)\s+([a-zA-Z]+)\b/.test(t))
     return "whose_page";
 
   // Accept booking
@@ -476,11 +476,20 @@ function buildVisitorResponse(intent: Intent, text: string, history: any[]): any
         functionCall: { name: "getCurrentUser", args: {} },
       };
 
-    case "whose_page":
+    case "whose_page": {
+      const match = text.match(/\b(?:schedule|calendar)\s+(?:of|for)\s+([a-zA-Z]+)\b/i);
+      const target = match ? match[1] : null;
+      if (target && target.toLowerCase() !== "me") {
+        return {
+          type: "function_call",
+          functionCall: { name: "searchPeople", args: { query: target } },
+        };
+      }
       return {
         type: "function_call",
         functionCall: { name: "getPageOwner", args: {} },
       };
+    }
 
     case "navigate": {
       const path = resolveNavPath(text);
@@ -524,7 +533,7 @@ function buildVisitorResponse(intent: Intent, text: string, history: any[]): any
     default:
       return {
         type: "text",
-        text: `I'm not quite sure I caught that. I'm here to help you book appointments or search for users—what do you need help with?`,
+        text: `Got it! Just to be sure, are you trying to **book a slot**, **check a schedule**, or **find someone**? (Try saying something like "book with Ritu")`,
       };
   }
 }
