@@ -60,8 +60,12 @@ function resolveTime(text: string): string | null {
   if (!match) return null;
   let hour = parseInt(match[1]);
   const ampm = match[3];
-  if (ampm === "pm" && hour < 12) hour += 12;
-  if (ampm === "am" && hour === 12) hour = 0;
+  
+  const isPM = ampm === "pm" || lower.includes("pm") || lower.includes("evening") || lower.includes("night") || (lower.includes("afternoon") && hour < 12);
+  const isAM = ampm === "am" || lower.includes("am") || lower.includes("morning");
+  
+  if (isPM && hour < 12) hour += 12;
+  if (isAM && hour === 12) hour = 0;
   if (hour < 5 || hour > 22) return null;
   return `${String(hour).padStart(2, "0")}:00:00`;
 }
@@ -190,13 +194,13 @@ function buildOwnerResponse(intent: Intent, text: string, history: any[]): any {
     case "greeting":
       return {
         type: "text",
-        text: `Hello! 👋 Welcome to your Dashboard.\n\nI'm your AI scheduling assistant. Here's what I can help you with:\n\n📅 **View your schedule** — "What's on my calendar today?"\n➕ **Add time slots** — "Add a meeting tomorrow at 3 PM"\n🔄 **Reschedule meetings** — "Move my 2 PM meeting to Thursday"\n📋 **Manage booking requests** — "Show me pending bookings"\n👥 **Find & connect with people** — "Find John"\n🔍 **Navigate the platform** — "Go to People page"\n\nWhat would you like to do?`,
+        text: `Hey there! 👋 I'm doing great, thanks for asking. How are you doing? I'm your scheduling assistant. What do you need help with today?`,
       };
 
     case "help":
       return {
         type: "text",
-        text: `Sure! Here's everything I can do for you:\n\n**📅 Schedule Management:**\n• View your schedule for any date\n• Add new time slots with title, category & time\n• Reschedule existing meetings\n• Delete slots you no longer need\n\n**📋 Booking Management:**\n• View pending booking requests\n• Accept or reject bookings\n• Add remarks when accepting\n\n**👥 Social Features:**\n• Search for people by name or email\n• Send connection requests\n• View your connections\n\n**🧭 Navigation:**\n• Navigate to any page on the platform\n\nJust tell me what you need! 😊`,
+        text: `I'm a smart scheduling assistant! I can help you view your schedule, create new meetings, check up on pending booking requests, or even search for other users to connect with. Just tell me what you're trying to do in plain English! 😊`,
       };
 
     case "view_schedule": {
@@ -204,6 +208,22 @@ function buildOwnerResponse(intent: Intent, text: string, history: any[]): any {
       return {
         type: "function_call",
         functionCall: { name: "getTodaySchedule", args: { date } },
+      };
+    }
+
+    case "book_slot": {
+      const withMatch = text.match(/with\s+([a-zA-Z0-9._%+-]+(?:@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})?|[a-zA-Z]+)/i);
+      const hostQuery = withMatch ? withMatch[1].trim() : null;
+
+      if (hostQuery && hostQuery.toLowerCase() !== "me") {
+        return {
+          type: "function_call",
+          functionCall: { name: "searchPeople", args: { query: hostQuery } },
+        };
+      }
+      return {
+        type: "text",
+        text: `To book a slot, please tell me who you want to book with (e.g., "book a slot with Nagadhatri"). I will search for them and help you navigate to their schedule!`,
       };
     }
 
@@ -265,7 +285,7 @@ function buildOwnerResponse(intent: Intent, text: string, history: any[]): any {
       };
 
     case "find_people": {
-      const query = text.replace(/\b(find|search|look\s*for|discover|people|user|person|someone|please|can you|for|about)\b/gi, "").trim();
+      const query = text.replace(/\b(find|search|look\s*for|discover|people|user|person|someone|please|can you|for|about|named|called|profile|schedule|calendar|with|to)\b/gi, "").trim();
       if (query.length > 1) {
         return {
           type: "function_call",
@@ -338,7 +358,7 @@ function buildOwnerResponse(intent: Intent, text: string, history: any[]): any {
     default:
       return {
         type: "text",
-        text: `I'm here to help you manage your schedule! 😊\n\nTry asking me things like:\n• "What's on my calendar today?"\n• "Add a slot tomorrow at 10 AM"\n• "Show me pending bookings"\n• "Find someone named Ritu"\n• "Go to People page"\n\nWhat would you like to do?`,
+        text: `Hmm, I'm not exactly sure what you mean. Could you explain what you want to do with your schedule? I'm here to help!`,
       };
   }
 }
@@ -350,16 +370,26 @@ function buildVisitorResponse(intent: Intent, text: string, history: any[]): any
     case "greeting":
       return {
         type: "text",
-        text: `Hello! 👋 Welcome to MyScheduler!\n\nI'm your booking assistant. Here's how I can help:\n\n📅 **Book an appointment** — "I want to book a meeting tomorrow at 10 AM"\n🔍 **Check available slots** — "Show me available slots for today"\n📋 **Track your bookings** — "Check my booking status"\n👥 **Find people** — "Search for John"\n🧭 **Navigate** — "Go to People page"\n\nWhat would you like to do?`,
+        text: `Hey there! 👋 How are you? I'm your smart booking assistant. I can help you find time slots and connect with people. What are you looking to do today?`,
       };
 
     case "help":
       return {
         type: "text",
-        text: `Here's everything I can help you with! 🌟\n\n**📅 Booking:**\n• Find available time slots for any date\n• Book an appointment (I'll guide you step-by-step!)\n• Check the status of your existing bookings\n\n**👥 Social:**\n• Search for people by name or email\n• Send connection requests\n• View your connections\n\n**🧭 Navigation:**\n• Go to any page — Dashboard, People, Login, etc.\n\n**🔑 Account Help:**\n• Reset your password if you forgot it\n\nJust ask away! 😊`,
+        text: `I'm a smart scheduling assistant! If you want to book an appointment, check on a previous booking, or find someone on the platform, just let me know in your own words. I'll guide you through it! 😊`,
       };
 
     case "book_slot": {
+      const withMatch = text.match(/with\s+([a-zA-Z0-9._%+-]+(?:@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})?|[a-zA-Z]+)/i);
+      const hostQuery = withMatch ? withMatch[1].trim() : null;
+
+      if (hostQuery && hostQuery.toLowerCase() !== "me" && !resolveDate(text)) {
+        return {
+          type: "function_call",
+          functionCall: { name: "searchPeople", args: { query: hostQuery } },
+        };
+      }
+
       const date = resolveDate(text);
       const time = resolveTime(text);
 
@@ -407,7 +437,7 @@ function buildVisitorResponse(intent: Intent, text: string, history: any[]): any
     }
 
     case "find_people": {
-      const query = text.replace(/\b(find|search|look\s*for|discover|people|user|person|someone|please|can you|for|about)\b/gi, "").trim();
+      const query = text.replace(/\b(find|search|look\s*for|discover|people|user|person|someone|please|can you|for|about|named|called|profile|schedule|calendar|with|to)\b/gi, "").trim();
       if (query.length > 1) {
         return {
           type: "function_call",
@@ -494,7 +524,7 @@ function buildVisitorResponse(intent: Intent, text: string, history: any[]): any
     default:
       return {
         type: "text",
-        text: `I'm here to help you navigate MyScheduler! 😊\n\nTry asking me:\n• "I want to book an appointment"\n• "Show available slots for tomorrow"\n• "Check my booking status"\n• "Find someone named Ritu"\n• "How do I sign up?"\n\nWhat would you like to do?`,
+        text: `I'm not quite sure I caught that. I'm here to help you book appointments or search for users—what do you need help with?`,
       };
   }
 }
@@ -506,6 +536,159 @@ function detectFollowUp(text: string, history: any[]): any | null {
 
   const lastBotMsg = [...history].reverse().find((m: any) => m.role === "model" && m.text);
   const lastBotText = lastBotMsg?.text?.toLowerCase() || "";
+
+  // 0. Check if user is asking to change duration (e.g. "30 mins") during a booking flow:
+  if (lastBotText.includes("finalize your booking") || lastBotText.includes("selected") || lastBotText.includes("what's your full name?") || lastBotText.includes("reason for the meeting")) {
+    if (/\b(30|thirty|half|duration|length)\b/i.test(t) && /\b(min|minute|hour)\b/i.test(t)) {
+      return {
+        type: "text",
+        text: `⚠️ MyScheduler currently only supports standard **1-hour** slots to keep scheduling simple and consistent.\n\nWould you like to proceed with the 1-hour booking at this time? If so, please tell me **Your full name** to get started!`,
+      };
+    }
+  }
+
+  // 0.1. If the last bot message asked for all information at once (during Gemini fallback or local booking init)
+  if (lastBotText.includes("finalize your booking") && !lastBotText.includes("what's your full name?")) {
+    return {
+      type: "text",
+      text: `Let's get those details step-by-step! First, **what is your full name**?`,
+    };
+  }
+
+  // 1. If the bot asked for Name:
+  if (lastBotText.includes("what's your full name?") || lastBotText.includes("your full name")) {
+    const name = text.trim();
+    if (name.length > 1) {
+      return {
+        type: "text",
+        text: `Thanks, **${name}**! What is your email address?`,
+      };
+    }
+  }
+
+  // 2. If the bot asked for Email:
+  if (lastBotText.includes("what is your email address?")) {
+    const email = extractEmail(text);
+    if (email) {
+      return {
+        type: "text",
+        text: `Got it! Please provide a brief description/reason for the meeting.`,
+      };
+    } else {
+      return {
+        type: "text",
+        text: `Please enter a valid email address so the host can contact you. What is your email address?`,
+      };
+    }
+  }
+
+  // 3. If the bot asked for Description:
+  if (lastBotText.includes("description/reason") || lastBotText.includes("description is currently")) {
+    const desc = text.trim();
+    const wordCount = desc.split(/\s+/).length;
+    
+    // Extract name and email from history to prepare confirmation
+    let nameVal = "";
+    let emailVal = "";
+    for (let i = history.length - 1; i >= 0; i--) {
+      const msg = history[i];
+      if (msg.role === "model" && msg.text) {
+        if (msg.text.includes("Thanks, **") && !nameVal) {
+          const m = msg.text.match(/Thanks, \*\*([^*]+)\*\*/);
+          if (m) nameVal = m[1];
+        }
+        if (msg.text.includes("email address?") && !emailVal && history[i+1] && history[i+1].role === "user") {
+          emailVal = extractEmail(history[i+1].text || "") || "";
+        }
+      }
+    }
+
+    if (wordCount < 1) {
+      return {
+        type: "text",
+        text: `Please enter a valid description/reason for the meeting.`,
+      };
+    } else {
+      // Find date and time from history:
+      let dateVal = today();
+      let timeVal = "09:00:00";
+      for (const h of history) {
+        if (h.role === "function" && h.name === "getAvailableSlots") {
+          dateVal = h.response?.date || dateVal;
+        }
+        if (h.role === "model" && h.text) {
+          const tm = h.text.match(/Great choice! ⏰ \*\*([0-9:]+\s*[APM]+)\*\*/i);
+          if (tm) timeVal = resolveTime(tm[1]) || timeVal;
+        }
+      }
+      const hour = parseInt(timeVal.slice(0, 2));
+      const endH = `${String(hour + 1).padStart(2, "0")}:00:00`;
+
+      return {
+        type: "text",
+        text: `Perfect! I'll book you for **${dateVal}** at **${formatTimeReadable(timeVal)}**. This will be a 1-hour slot, ending at **${formatTimeReadable(endH)}**.\n\nHere are the details:\n• **Name:** ${nameVal}\n• **Email:** ${emailVal}\n• **Description:** "${desc}"\n\nDoes this look correct? Please say **yes** or **confirm** to submit!`,
+      };
+    }
+  }
+
+  // 4. If the bot asked to confirm (e.g. "Does this look correct?"):
+  if (lastBotText.includes("does this look correct?") && /^(yes|yeah|yep|sure|ok|okay|go ahead|confirm|do it|submit|please|please do)\b/.test(t)) {
+    // Reconstruct all details from history:
+    let nameVal = "";
+    let emailVal = "";
+    let descVal = "";
+    let dateVal = today();
+    let timeVal = "09:00:00";
+
+    for (let i = history.length - 1; i >= 0; i--) {
+      const msg = history[i];
+      if (msg.role === "model" && msg.text) {
+        if (msg.text.includes("Does this look correct?")) {
+          // Parse the confirmation text details:
+          const nameM = msg.text.match(/Name:\*\* ([^\n]+)/);
+          const emailM = msg.text.match(/Email:\*\* ([^\n]+)/);
+          const descM = msg.text.match(/Description:\*\* "([^"]+)"/);
+          const dateM = msg.text.match(/book you for \*\*([0-9-]+)\*\*/);
+          const timeM = msg.text.match(/at \*\*([0-9:]+\s*[APM]+)\*\*/);
+          
+          if (nameM) nameVal = nameM[1];
+          if (emailM) emailVal = emailM[1];
+          if (descM) descVal = descM[1];
+          if (dateM) dateVal = dateM[1];
+          if (timeM) timeVal = resolveTime(timeM[1]) || timeVal;
+        }
+      }
+    }
+
+    const hour = parseInt(timeVal.slice(0, 2));
+    const endH = `${String(hour + 1).padStart(2, "0")}:00:00`;
+
+    return {
+      type: "function_call",
+      functionCall: {
+        name: "bookAppointment",
+        args: {
+          name: nameVal,
+          email: emailVal,
+          date: dateVal,
+          start_time: timeVal,
+          end_time: endH,
+          description: descVal,
+        },
+      },
+    };
+  }
+
+  // User says "navigate me" or "sure" after a search result
+  if (lastBotText.includes("search results") || lastBotText.includes("view schedule")) {
+    const match = lastBotText.match(/\/visit\/([\w-]+)/);
+    if (match && /^(yes|yeah|yep|sure|ok|okay|go ahead|navigate|take me|show|open|navigate me)\b/.test(t)) {
+      return {
+        type: "function_call",
+        functionCall: { name: "navigateToPage", args: { path: `/visit/${match[1]}` } },
+      };
+    }
+  }
 
   // User is providing a date after being asked
   if (lastBotText.includes("what date") || lastBotText.includes("what **date**")) {
@@ -570,7 +753,7 @@ function detectFollowUp(text: string, history: any[]): any | null {
   if (time && (lastBotText.includes("which time") || lastBotText.includes("available slots") || lastBotText.includes("✅"))) {
     return {
       type: "text",
-      text: `Great choice! ⏰ **${formatTimeReadable(time)}** is selected.\n\nTo complete the booking, I need a few more details:\n1. **Your full name**\n2. **Your email address**\n3. **Reason for the meeting** (at least 25 words)\n\nWhat's your full name?`,
+      text: `Great choice! ⏰ **${formatTimeReadable(time)}** is selected.\n\nTo complete the booking, I need a few more details:\n1. **Your full name**\n2. **Your email address**\n3. **Reason for the meeting**\n\nWhat's your full name?`,
     };
   }
 
@@ -610,7 +793,7 @@ function buildHowToResponse(text: string): any {
   if (/book|appointment|meeting|reserve/i.test(t)) {
     return {
       type: "text",
-      text: `Here's how to book an appointment! 📅\n\n1. **Find the person** you want to book with:\n   • Go to **People** page → search by name/email → send a **Connect** request\n   • Wait for them to **accept** your connection\n2. Once connected, click **View Schedule** on their profile\n3. **Pick a date** on the calendar\n4. Browse the **available time slots**\n5. Click **Book** on your preferred slot\n6. Fill in your **name, email, and reason** (min 25 words)\n7. Submit! The owner will review and accept/reject your request ✅\n\nOr just tell me *"I want to book a slot"* and I'll guide you through it right here! 😊`,
+      text: `Here's how to book an appointment! 📅\n\n1. **Find the person** you want to book with:\n   • Go to **People** page → search by name/email → send a **Connect** request\n   • Wait for them to **accept** your connection\n2. Once connected, click **View Schedule** on their profile\n3. **Pick a date** on the calendar\n4. Browse the **available time slots**\n5. Click **Book** on your preferred slot\n6. Fill in your **name, email, and reason**\n7. Submit! The owner will review and accept/reject your request ✅\n\nOr just tell me *"I want to book a slot"* and I'll guide you through it right here! 😊`,
     };
   }
 
@@ -707,8 +890,8 @@ function formatFunctionResult(name: string, response: any): string {
     case "searchPeople": {
       const users = response.users || [];
       if (users.length === 0) return "🔍 No users found matching that search. Try a different name or email!";
-      const lines = users.map((u: any) => `• **${u.display_name || "User"}** — ${u.occupation || "N/A"} (${u.email})`);
-      return `🔍 **Search Results:**\n\n${lines.join("\n")}\n\nWould you like to connect with any of them? Or view their schedule?`;
+      const lines = users.map((u: any) => `• **${u.display_name || "User"}** — ${u.occupation || "N/A"} (${u.email}) [View Schedule](/visit/${u.id})`);
+      return `🔍 **Search Results:**\n\n${lines.join("\n")}\n\nWould you like to navigate to their schedule? Click [View Schedule](/visit/${users[0].id}) or just ask me to navigate you!`;
     }
 
     case "getConnections": {
@@ -741,32 +924,7 @@ function formatFunctionResult(name: string, response: any): string {
       return response.success ? "✅ Slot added successfully to your calendar! 🎉" : `⚠️ Failed to add slot: ${response.error}`;
 
     case "deleteSlot":
-      return response.success ? "🗑️ Slot deleted successfully!" : `⚠️ Failed to delete: ${response.error}`;
-
-    case "bookAppointment":
-      return response.success ? "🎉 Your booking request has been submitted! The owner will review it and you'll be notified. Check back using 'Track My Bookings'!" : `⚠️ Booking failed: ${response.error}`;
-
-    case "sendConnectionRequest":
-      return response.success ? "🤝 Connection request sent! They'll see it in their Incoming Requests." : `⚠️ Failed: ${response.error}`;
-
-    case "respondToBooking":
-      return response.success ? `✅ ${response.message}` : `⚠️ Failed: ${response.error}`;
-
-    case "rescheduleSlot":
-      return response.success ? `🔄 ${response.message}` : `⚠️ Failed: ${response.error}`;
-
-    case "requestPasswordReset":
-      return response.success ? `📧 ${response.message} Check your inbox (and spam folder)!` : `⚠️ Failed: ${response.error}`;
-
-    default:
-      return response.success ? "✅ Done!" : `Result: ${JSON.stringify(response).slice(0, 200)}`;
-  }
-}
-
-// ── Main API Handler ─────────────────────────────────────
-
-
-const OWNER_TOOLS = [
+      const OWNER_TOOLS = [
   {
     name: "getTodaySchedule",
     description: "Get the owner's schedule for today or a specific date.",
@@ -813,6 +971,7 @@ const OWNER_TOOLS = [
         new_date: { type: "string" as const, description: "New date in YYYY-MM-DD format" },
         new_start_time: { type: "string" as const, description: "New start time in HH:mm format" },
         new_end_time: { type: "string" as const, description: "New end time in HH:mm format" },
+        reason: { type: "string" as const, description: "Optional reason for rescheduling" },
       },
       required: ["slot_id", "new_date", "new_start_time", "new_end_time"],
     },
@@ -914,7 +1073,264 @@ const VISITOR_TOOLS = [
         date: { type: "string" as const, description: "Date in YYYY-MM-DD format" },
         start_time: { type: "string" as const, description: "Start time in HH:mm:ss format (e.g., 10:00:00)" },
         end_time: { type: "string" as const, description: "End time in HH:mm:ss format (e.g., 11:00:00)" },
-        description: { type: "string" as const, description: "Reason for the meeting (must be at least 25 words)" },
+        description: { type: "string" as const, description: "Brief reason for the meeting (a few words is fine, NO minimum word count)" },
+      },
+      required: ["name", "email", "date", "start_time", "end_time", "description"],
+    },
+  },
+  {
+    name: "checkBookingStatus",
+    description: "Check the status of bookings by email address. Shows whether bookings are pending, accepted, rejected, etc.",
+    parameters: {
+      type: "object" as const,
+      properties: { email: { type: "string" as const } },
+      required: ["email"],
+    },
+  },
+  {
+    name: "searchPeople",
+    description: "Search for other users by name or email to connect with them. If query is omitted or empty, it returns a general list of suggested users on the platform.",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        query: { type: "string" as const, description: "Optional name or email to search for" },
+      },
+    },
+  },
+  {
+    name: "sendConnectionRequest",
+    description: "Send a connection request to another user by their ID.",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        receiver_id: { type: "string" as const, description: "The ID of the user to connect with" },
+      },
+      required: ["receiver_id"],
+    },
+  },
+  {
+    name: "getConnections",
+    description: "Get the user's connections (pending, accepted, or rejected).",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        status: { type: "string" as const, description: "Optional filter by status: 'pending', 'accepted', 'rejected'. If omitted, returns all." },
+      },
+    },
+  },
+  {
+    name: "getCurrentUser",
+    description: "Get the profile details of the currently logged-in user (such as name, email, occupation). Use this when the user asks 'who am I?', 'what is my occupation?', or 'what is my profile?'.",
+    parameters: {
+      type: "object" as const,
+      properties: {},
+    },
+  },
+  {
+    name: "getPageOwner",
+    description: "Get the profile details of the user whose schedule page the visitor is currently viewing (name, email, occupation). Use this when the visitor asks 'whose schedule is this?', 'who is the owner?', or 'what is the owner's occupation?'.",
+    parameters: {
+      type: "object" as const,
+      properties: {},
+    },
+  },
+  {
+    name: "navigateToPage",
+    description: "Navigate/redirect the user to a specific page on the website. Use this when the user explicitly asks to go to a page (like '/dashboard', '/people', '/login', '/signup', or '/schedule/[userId]'), or gives permission to be redirected.",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        path: { type: "string" as const, description: "The relative path to navigate to (e.g., '/people', '/dashboard', '/login', '/schedule/some-user-id')" },
+      },
+      required: ["path"],
+    },
+  },
+  {
+    name: "requestPasswordReset",
+    description: "Request a password reset link for a user's email address. Use this when the user says they forgot their password, and you have confirmed their email address.",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        email: { type: "string" as const, description: "The email address of the account to reset" },
+      },
+      required: ["email"],
+    },
+  },
+];
+      return response.success ? "🗑️ Slot deleted successfully!" : `⚠️ Failed to delete: ${response.error}`;
+
+    case "bookAppointment":
+      return response.success ? "🎉 Your booking request has been submitted! The owner will review it and you'll be notified. Check back using 'Track My Bookings'!" : `⚠️ Booking failed: ${response.error}`;
+
+    case "sendConnectionRequest":
+      return response.success ? "🤝 Connection request sent! They'll see it in their Incoming Requests." : `⚠️ Failed: ${response.error}`;
+
+    case "respondToBooking":
+      return response.success ? `✅ ${response.message}` : `⚠️ Failed: ${response.error}`;
+
+    case "rescheduleSlot":
+      return response.success ? `🔄 ${response.message}` : `⚠️ Failed: ${response.error}`;
+
+    case "requestPasswordReset":
+      return response.success ? `📧 ${response.message} Check your inbox (and spam folder)!` : `⚠️ Failed: ${response.error}`;
+
+    default:
+      return response.success ? "✅ Done!" : `Result: ${JSON.stringify(response).slice(0, 200)}`;
+  }
+}
+
+// ── Main API Handler ─────────────────────────────────────
+
+const OWNER_TOOLS = [
+  {
+    name: "getTodaySchedule",
+    description: "Get the owner's schedule for today or a specific date.",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        date: { type: "string" as const, description: "Optional date in YYYY-MM-DD format. Defaults to today if not provided." },
+      },
+    },
+  },
+  {
+    name: "queryBookings",
+    description: "Query pending booking requests that need action, or all bookings.",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        status: { type: "string" as const, description: "Filter by status: 'Pending', 'Accepted', 'Rejected', or 'all'. Defaults to 'Pending'." },
+      },
+    },
+  },
+  {
+    name: "addSlot",
+    description: "Add a new schedule slot to the owner's calendar.",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        title: { type: "string" as const },
+        date: { type: "string" as const, description: "Date in YYYY-MM-DD format" },
+        start_time: { type: "string" as const, description: "Start time in HH:mm format" },
+        end_time: { type: "string" as const, description: "End time in HH:mm format" },
+        category: { type: "string" as const, enum: ["Meeting", "Presentation", "Event Participation", "Learning", "Other"] },
+        description: { type: "string" as const, description: "Optional description" },
+      },
+      required: ["title", "date", "start_time", "end_time", "category"],
+    },
+  },
+  {
+    name: "rescheduleSlot",
+    description: "Move an existing schedule slot to a new date/time. Marks the old slot as 'Rescheduled' and creates a new 'Upcoming' slot.",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        slot_id: { type: "string" as const, description: "The ID of the schedule to reschedule" },
+        new_date: { type: "string" as const, description: "New date in YYYY-MM-DD format" },
+        new_start_time: { type: "string" as const, description: "New start time in HH:mm format" },
+        new_end_time: { type: "string" as const, description: "New end time in HH:mm format" },
+        reason: { type: "string" as const, description: "Optional reason for rescheduling" },
+      },
+      required: ["slot_id", "new_date", "new_start_time", "new_end_time"],
+    },
+  },
+  {
+    name: "deleteSlot",
+    description: "Delete a schedule slot by its ID.",
+    parameters: {
+      type: "object" as const,
+      properties: { id: { type: "string" as const } },
+      required: ["id"],
+    },
+  },
+  {
+    name: "respondToBooking",
+    description: "Accept, reject, or add remarks to a pending booking request.",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        booking_id: { type: "string" as const },
+        action: { type: "string" as const, enum: ["Accepted", "Accepted with Remarks", "Rejected"] },
+        remarks: { type: "string" as const, description: "Optional message to send to the visitor" },
+      },
+      required: ["booking_id", "action"],
+    },
+  },
+  {
+    name: "searchPeople",
+    description: "Search for other users by name or email to connect with them. If query is omitted or empty, it returns a general list of suggested users on the platform.",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        query: { type: "string" as const, description: "Optional name or email to search for" },
+      },
+    },
+  },
+  {
+    name: "sendConnectionRequest",
+    description: "Send a connection request to another user by their ID.",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        receiver_id: { type: "string" as const, description: "The ID of the user to connect with" },
+      },
+      required: ["receiver_id"],
+    },
+  },
+  {
+    name: "getConnections",
+    description: "Get the user's connections (pending, accepted, or rejected).",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        status: { type: "string" as const, description: "Optional filter by status: 'pending', 'accepted', 'rejected'. If omitted, returns all." },
+      },
+    },
+  },
+  {
+    name: "getCurrentUser",
+    description: "Get the profile details of the currently logged-in user (such as name, email, occupation). Use this when the user asks 'who am I?', 'what is my occupation?', or 'what is my profile?'.",
+    parameters: {
+      type: "object" as const,
+      properties: {},
+    },
+  },
+  {
+    name: "navigateToPage",
+    description: "Navigate/redirect the user to a specific page on the website. Use this when the user explicitly asks to go to a page (like '/dashboard', '/people', '/login', '/signup', or '/schedule/[userId]'), or gives permission to be redirected.",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        path: { type: "string" as const, description: "The relative path to navigate to (e.g., '/people', '/dashboard', '/login', '/schedule/some-user-id')" },
+      },
+      required: ["path"],
+    },
+  },
+];
+
+const VISITOR_TOOLS = [
+  {
+    name: "getAvailableSlots",
+    description: "Get available 1-hour time slots for a specific date. Returns slots from 5 AM to 11 PM that are not yet booked.",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        date: { type: "string" as const, description: "Date in YYYY-MM-DD format" },
+      },
+      required: ["date"],
+    },
+  },
+  {
+    name: "bookAppointment",
+    description: "Book an appointment at a specific time slot. Creates a pending booking request that the schedule owner will review.",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        name: { type: "string" as const, description: "Visitor's full name" },
+        email: { type: "string" as const, description: "Visitor's email address" },
+        date: { type: "string" as const, description: "Date in YYYY-MM-DD format" },
+        start_time: { type: "string" as const, description: "Start time in HH:mm:ss format (e.g., 10:00:00)" },
+        end_time: { type: "string" as const, description: "End time in HH:mm:ss format (e.g., 11:00:00)" },
+        description: { type: "string" as const, description: "Brief reason for the meeting (a few words is fine, NO minimum word count)" },
       },
       required: ["name", "email", "date", "start_time", "end_time", "description"],
     },
@@ -999,7 +1415,6 @@ const VISITOR_TOOLS = [
   },
 ];
 
-
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -1014,8 +1429,8 @@ export async function POST(req: Request) {
 MyScheduler is a social scheduling platform where users can schedule meetings, view availability, and connect.
 ## Current Date: ${today()} (${dayName()})`;
         
-        const ownerSystemInstruction = PLATFORM_KNOWLEDGE + "\n\nYour Role: You are the AI assistant on the OWNER'S DASHBOARD. Use tools to manage schedule and answer questions.";
-        const visitorSystemInstruction = PLATFORM_KNOWLEDGE + "\n\nYour Role: You are the AI assistant for VISITORS. Help them find slots and book appointments using tools.";
+        const ownerSystemInstruction = PLATFORM_KNOWLEDGE + "\n\nYour Role: You are a highly intelligent, conversational AI assistant on the OWNER'S DASHBOARD. Be natural and human-like in your responses (like ChatGPT/Claude). DO NOT use repetitive bullet points or robotic greetings. If the user says 'hi', respond naturally with a brief greeting. Use tools to manage schedule, respond to bookings, and answer questions. You can navigate the owner using the navigateToPage tool.";
+        const visitorSystemInstruction = PLATFORM_KNOWLEDGE + "\n\nYour Role: You are a highly intelligent, conversational AI assistant for VISITORS. Be natural and human-like in your responses (like ChatGPT/Claude). DO NOT use repetitive bullet points or robotic greetings. If the user says 'hi', respond naturally with a brief greeting.\nTo book an appointment:\n1. When a user asks to book a slot, do NOT navigate them away unless explicitly asked. Instead, help them directly.\n2. First search for the host using the searchPeople tool.\n3. Use getAvailableSlots to find available times for the desired date.\n4. Ask the user for any missing details step-by-step: their name, email, date, time, and a brief reason for the meeting.\n5. Book the appointment directly using the bookAppointment tool. NEVER ask for a minimum word count for the reason (a short reason is perfectly fine).";
         
         const systemInstruction = context === "owner" ? ownerSystemInstruction : visitorSystemInstruction;
         const tools = context === "owner" ? OWNER_TOOLS : VISITOR_TOOLS;
@@ -1068,19 +1483,41 @@ MyScheduler is a social scheduling platform where users can schedule meetings, v
             text: response.text || "I'm here to help!"
           });
         }
-      } catch (geminiError) {
+      } catch (geminiError: any) {
         console.warn("Gemini API failed, falling back to local engine:", geminiError);
+        if (geminiError?.status === 429 || (geminiError?.message && (geminiError.message.toLowerCase().includes("quota") || geminiError.message.includes("429")))) {
+            return NextResponse.json({
+                type: "text",
+                text: "⚠️ **Gemini API Quota Exceeded!** ⚠️\n\nI cannot give you an intelligent, ChatGPT-like response right now because the Google Gemini API key has exceeded its usage limit. \n\nPlease update the `GEMINI_API_KEY` in your `.env.local` file with a new key and restart your server (`npm run dev`) to restore my full intelligence!"
+            });
+        }
         geminiFailed = true;
       }
     } else {
        geminiFailed = true;
     }
 
-    // Fallback to local intent detection
-    const intent = detectIntent(message || "");
-    const response = context === "owner"
-        ? buildOwnerResponse(intent, message || "", history || [])
-        : buildVisitorResponse(intent, message || "", history || []);
+    // If the last message in history is a function response, format it for the user in the local engine
+    if (history && history.length > 0) {
+      const lastMsg = history[history.length - 1];
+      if (lastMsg.role === "function") {
+        const formatted = formatFunctionResult(lastMsg.name, lastMsg.response);
+        return NextResponse.json({
+          type: "text",
+          text: formatted,
+        });
+      }
+    }
+
+    // Try follow-up detection first
+    let response = detectFollowUp(message || "", history || []);
+    if (!response) {
+      // Fallback to local intent detection
+      const intent = detectIntent(message || "");
+      response = context === "owner"
+          ? buildOwnerResponse(intent, message || "", history || [])
+          : buildVisitorResponse(intent, message || "", history || []);
+    }
 
     return NextResponse.json(response);
   } catch (error: any) {

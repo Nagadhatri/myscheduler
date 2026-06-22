@@ -184,8 +184,8 @@ export default function UserSchedulePage() {
   const handleBook = async (e: React.FormEvent) => {
     e.preventDefault();
     const wordCount = bookReason.trim().split(/\s+/).length;
-    if (!bookingSlot || wordCount < 25) {
-      toast.error("Please provide at least 25 words for your reason.");
+    if (!bookingSlot || !bookReason.trim()) {
+      toast.error("Please provide a reason for the meeting.");
       return;
     }
     setSubmitting(true);
@@ -433,7 +433,7 @@ export default function UserSchedulePage() {
               <Input required type="email" value={bookEmail} onChange={(e) => setBookEmail(e.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label>Reason (min 25 words)</Label>
+              <Label>Reason</Label>
               <Input required value={bookReason} onChange={(e) => setBookReason(e.target.value)} placeholder="I'd like to discuss..." />
             </div>
             <DialogFooter>

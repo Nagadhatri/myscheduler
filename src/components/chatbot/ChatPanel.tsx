@@ -41,6 +41,87 @@ function ChatPanelInner({
   const supabase = createClient();
   const router = useRouter();
 
+  const renderFormattedText = (text: string) => {
+    if (!text) return null;
+
+    // Regex to match markdown links: [text](url)
+    const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
+    const parts: React.ReactNode[] = [];
+    let lastIndex = 0;
+    let match;
+
+    const renderBoldText = (subText: string, baseKey: string) => {
+      const boldRegex = /\*\*([^*]+)\*\*/g;
+      const subParts: React.ReactNode[] = [];
+      let subLastIndex = 0;
+      let subMatch;
+
+      while ((subMatch = boldRegex.exec(subText)) !== null) {
+        const plainText = subText.substring(subLastIndex, subMatch.index);
+        if (plainText) {
+          subParts.push(plainText);
+        }
+        subParts.push(
+          <strong key={`${baseKey}-bold-${subMatch.index}`} className="font-bold text-foreground">
+            {subMatch[1]}
+          </strong>
+        );
+        subLastIndex = boldRegex.lastIndex;
+      }
+
+      const remaining = subText.substring(subLastIndex);
+      if (remaining) {
+        subParts.push(remaining);
+      }
+
+      return subParts;
+    };
+
+    while ((match = linkRegex.exec(text)) !== null) {
+      const plainText = text.substring(lastIndex, match.index);
+      if (plainText) {
+        parts.push(...renderBoldText(plainText, `plain-${lastIndex}`));
+      }
+      const label = match[1];
+      const url = match[2];
+
+      const key = `link-${match.index}`;
+      if (url.startsWith("/")) {
+        parts.push(
+          <span
+            key={key}
+            onClick={() => {
+              router.push(url);
+            }}
+            className="text-primary hover:underline font-semibold cursor-pointer underline decoration-primary/50"
+          >
+            {label}
+          </span>
+        );
+      } else {
+        parts.push(
+          <a
+            key={key}
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary hover:underline font-semibold underline decoration-primary/50"
+          >
+            {label}
+          </a>
+        );
+      }
+      lastIndex = linkRegex.lastIndex;
+    }
+
+    const remaining = text.substring(lastIndex);
+    if (remaining) {
+      parts.push(...renderBoldText(remaining, `plain-${lastIndex}`));
+    }
+
+    return parts;
+  };
+
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollIntoView({ behavior: "smooth" });
@@ -464,7 +545,7 @@ function ChatPanelInner({
                         : "bg-white/5 border border-white/5 rounded-bl-md"
                     }`}
                   >
-                    {msg.text}
+                    {renderFormattedText(msg.text || "")}
                   </div>
                 </div>
               );
