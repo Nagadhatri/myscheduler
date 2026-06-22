@@ -102,12 +102,16 @@ type Intent =
 function detectIntent(text: string): Intent {
   const t = text.toLowerCase();
 
+  // Book (highest priority for visitor)
+  if (/\b(book|schedule.*meeting|schedule.*appointment|reserve|make.*appointment|set.*meeting|need.*slot)\b/.test(t) || (/\bbook\b/.test(t) && /\bslot\b/.test(t)))
+    return "book_slot";
+
   // Greetings
   if (/^(hi|hello|hey|howdy|yo|what's up|good morning|good evening|good afternoon|greetings)\b/.test(t))
     return "greeting";
 
   // Help
-  if (/\b(help|what can you do|how do i|how does|guide|tutorial|explain|instructions)\b/.test(t))
+  if (/\b(help|what can you do|how do i|how does|guide|tutorial|explain|instructions)\b/.test(t) && !/\bbook\b/.test(t))
     return "help";
 
   // Password reset
@@ -133,10 +137,6 @@ function detectIntent(text: string): Intent {
   // Manage bookings / pending
   if (/\b(pending|booking request|manage booking|review booking|booking.*request)\b/.test(t))
     return "manage_bookings";
-
-  // Book
-  if (/\b(book|schedule.*meeting|schedule.*appointment|reserve|make.*appointment|set.*meeting|need.*slot)\b/.test(t))
-    return "book_slot";
 
   // Check status
   if (/\b(status|track|check.*booking|my booking|my appointment|look.*up)\b/.test(t))
@@ -536,6 +536,46 @@ function detectFollowUp(text: string, history: any[]): any | null {
 
   const lastBotMsg = [...history].reverse().find((m: any) => m.role === "model" && m.text);
   const lastBotText = lastBotMsg?.text?.toLowerCase() || "";
+  
+  // If the text is a JSON search result, let's ask the user for a date!
+  if (t.startsWith('{"users"')) {
+    try {
+      const data = JSON.parse(t);
+      if (data.users && data.users.length > 0) {
+        return {
+          type: "text",
+          text: `I found them! Awesome. What **date** would you like to book a slot for? (e.g. tomorrow, next Monday, 2026-06-25)`
+        };
+      } else {
+        return {
+          type: "text",
+          text: `I couldn't find anyone by that name. Could you double-check the spelling or try their email?`
+        };
+      }
+    } catch (e) {
+      // ignore JSON parse error
+    }
+  }
+
+  // If the text is a JSON available slots result, ask the user to pick one
+  if (t.startsWith('{"available_slots"')) {
+    try {
+      const data = JSON.parse(t);
+      if (data.available_slots && data.available_slots.length > 0) {
+        return {
+          type: "text",
+          text: `Great! Here are the available slots for ${data.date}. Please pick a time (e.g., "10:00 AM"), and we'll get it booked!`
+        };
+      } else {
+        return {
+          type: "text",
+          text: `It looks like there are no slots available for that date. Would you like to try another day?`
+        };
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
 
   // 0. Check if user is asking to change duration (e.g. "30 mins") during a booking flow:
   if (lastBotText.includes("finalize your booking") || lastBotText.includes("selected") || lastBotText.includes("what's your full name?") || lastBotText.includes("reason for the meeting")) {
@@ -543,6 +583,38 @@ function detectFollowUp(text: string, history: any[]): any | null {
       return {
         type: "text",
         text: `⚠️ MyScheduler currently only supports standard **1-hour** slots to keep scheduling simple and consistent.\n\nWould you like to proceed with the 1-hour booking at this time? If so, please tell me **Your full name** to get started!`,
+      };
+    }
+  }
+
+  // Handle asking for a date
+  if (lastBotText.includes("what **date** would you like to book")) {
+    const d = resolveDate(text);
+    if (d) {
+      return {
+        type: "function_call",
+        functionCall: { name: "getAvailableSlots", args: { date: d } }
+      };
+    } else {
+      return {
+        type: "text",
+        text: `I couldn't quite understand that date. Could you please provide a clear date, like "tomorrow", "Friday", or "2026-06-25"?`
+      };
+    }
+  }
+
+  // Handle asking for a time
+  if (lastBotText.includes("please pick a time") || lastBotText.includes("pick a time")) {
+    const tm = resolveTime(text);
+    if (tm) {
+      return {
+        type: "text",
+        text: `Great choice! ⏰ **${formatTimeReadable(tm)}**. Let's get those details step-by-step! First, **what is your full name**?`
+      };
+    } else {
+      return {
+        type: "text",
+        text: `I didn't catch that time. Could you reply with a time like "10:00 AM" or "14:00"?`
       };
     }
   }
