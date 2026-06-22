@@ -71,7 +71,7 @@ export default function SignupPage() {
 
       if (data.session) {
         toast.success("Account created! Welcome aboard 🎉");
-        router.push("/dashboard");
+        window.location.href = "/dashboard";
       } else {
         setShowConfirmation(true);
       }

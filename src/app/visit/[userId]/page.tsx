@@ -197,14 +197,15 @@ export default function PublicVisitorPage() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
-      {/* Header Profile */}
+      {/* Header Profile — clearly shows WHOSE schedule you are booking */}
       <div className="flex items-center gap-4 mb-8 bg-card/40 border border-white/5 rounded-2xl p-6 glass-card">
-        <div className="w-12 h-12 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0">
-          <User className="w-6 h-6 text-primary" />
+        <div className="w-14 h-14 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0">
+          <User className="w-7 h-7 text-primary" />
         </div>
-        <div>
-          <h2 className="text-xl font-bold tracking-tight">{profile.display_name}</h2>
-          <p className="text-sm text-muted-foreground">
+        <div className="flex-1">
+          <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium mb-1">You are booking a meeting with</p>
+          <h2 className="text-2xl font-bold tracking-tight text-primary">{profile.display_name}</h2>
+          <p className="text-sm text-muted-foreground mt-0.5">
             {profile.occupation ? `${profile.occupation} • ${profile.email}` : profile.email}
           </p>
         </div>

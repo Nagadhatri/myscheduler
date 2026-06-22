@@ -79,14 +79,10 @@ export default function BookingRequestsPanel() {
     setLoading(false);
   };
 
-  // Separate pending approval (non-acquaintance) and regular pending bookings
-  const pendingApprovalBookings = bookings.filter(
-    (b) => b.booking_status === "Pending Approval"
-  );
   const pendingBookings = bookings.filter(
     (b) => b.booking_status === "Pending"
   );
-  const totalPending = pendingApprovalBookings.length + pendingBookings.length;
+  const totalPending = pendingBookings.length;
 
   return (
     <Card className="glass-card border-white/5">
@@ -112,84 +108,7 @@ export default function BookingRequestsPanel() {
             </div>
           ) : (
             <div className="space-y-3">
-              {/* NON-ACQUAINTANCE APPROVAL REQUESTS */}
-              {pendingApprovalBookings.length > 0 && (
-                <>
-                  <div className="flex items-center gap-2 text-xs text-amber-400/80 font-medium pb-1 border-b border-amber-400/10">
-                    <AlertTriangle className="w-3.5 h-3.5" />
-                    Non-Acquaintance Requests
-                  </div>
-                  {pendingApprovalBookings.map((b) => {
-                    const s = (b as any).schedule as Schedule;
-                    return (
-                      <div
-                        key={b.id}
-                        className="slot-card p-3 rounded-xl border border-amber-400/20 bg-amber-400/[0.03] space-y-2"
-                      >
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <p className="font-medium text-sm flex items-center gap-1.5">
-                              <UserPlus className="w-3.5 h-3.5 text-amber-400" />
-                              {b.visitor_name}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {b.visitor_email}
-                            </p>
-                          </div>
-                          <Badge className="bg-amber-400/15 text-amber-400 border border-amber-400/20 text-xs">
-                            ⚠️ Unknown
-                          </Badge>
-                        </div>
-                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <Clock className="w-3 h-3" />
-                          {s?.title} · {s?.date} ({s?.start_time?.slice(0, 5)} –{" "}
-                          {s?.end_time?.slice(0, 5)})
-                        </div>
-                        {b.description && (
-                          <p className="text-xs italic text-muted-foreground">
-                            &quot;{b.description}&quot;
-                          </p>
-                        )}
-                        <p className="text-xs text-amber-300/70 bg-amber-400/5 p-2 rounded-lg">
-                          This person is <strong>not in your contacts</strong>. Do you want to allow them to book a slot with you?
-                        </p>
-                        <div className="flex gap-2 mt-1">
-                          <Button
-                            size="sm"
-                            className="h-7 text-xs gap-1 glow-primary"
-                            disabled={loading}
-                            onClick={() => handleApproveStranger(b.id)}
-                          >
-                            <Check className="w-3 h-3" />
-                            Allow & Approve
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            className="h-7 text-xs gap-1"
-                            disabled={loading}
-                            onClick={() => {
-                              setSelectedBooking(b);
-                              setActionDialog("Reject");
-                            }}
-                          >
-                            <X className="w-3 h-3" />
-                            Reject
-                          </Button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </>
-              )}
-
-              {/* REGULAR PENDING REQUESTS (from acquaintances) */}
-              {pendingBookings.length > 0 && pendingApprovalBookings.length > 0 && (
-                <div className="flex items-center gap-2 text-xs text-muted-foreground font-medium pb-1 border-b border-white/5 mt-4">
-                  <Check className="w-3.5 h-3.5 text-emerald-400" />
-                  From Acquaintances
-                </div>
-              )}
+              {/* PENDING BOOKING REQUESTS */}
               {pendingBookings.map((b) => {
                 const s = (b as any).schedule as Schedule;
                 return (

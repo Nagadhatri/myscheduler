@@ -54,7 +54,7 @@ export async function POST(req: Request) {
 
     const isBooked = (existingSchedules || []).some((s: any) =>
       s.bookings?.some((b: any) =>
-        ["Accepted", "Accepted with Remarks", "Pending", "Pending Approval"].includes(b.booking_status)
+        ["Accepted", "Accepted with Remarks", "Pending"].includes(b.booking_status)
       )
     );
 
@@ -79,10 +79,8 @@ export async function POST(req: Request) {
 
     if (scheduleError) throw scheduleError;
 
-    // 3. Set booking status based on connection
-    // If connected → "Pending" (owner reviews normally)
-    // If NOT connected → "Pending Approval" (owner must first approve the stranger)
-    const bookingStatus = isConnected ? "Pending" : "Pending Approval";
+    // Both connected and non-connected visitors get "Pending" status
+    const bookingStatus = "Pending";
 
     const { error: bookingError } = await supabase
       .from("bookings")
