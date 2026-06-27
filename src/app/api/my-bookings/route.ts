@@ -22,16 +22,13 @@ export async function GET(req: Request) {
         booking_status,
         description,
         remarks,
+        owner_remarks,
         schedule:schedules${ownerId ? '!inner' : ''} (
           title,
           date,
           start_time,
           end_time,
-          owner_id,
-          owner:profiles (
-            display_name,
-            occupation
-          )
+          owner_id
         )
       `)
       .eq("visitor_email", email)
@@ -45,7 +42,31 @@ export async function GET(req: Request) {
 
     if (error) throw error;
 
-    return NextResponse.json({ bookings: bookings || [] });
+    let enrichedBookings = bookings || [];
+
+    if (enrichedBookings.length > 0) {
+      const ownerIds = Array.from(new Set(enrichedBookings.map((b: any) => b.schedule?.owner_id).filter(Boolean)));
+      if (ownerIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("id, display_name, occupation")
+          .in("id", ownerIds);
+        
+        const profileMap = (profiles || []).reduce((acc: any, p: any) => {
+          acc[p.id] = p;
+          return acc;
+        }, {});
+
+        enrichedBookings = enrichedBookings.map((b: any) => {
+          if (b.schedule) {
+            b.schedule.owner = profileMap[b.schedule.owner_id] || null;
+          }
+          return b;
+        });
+      }
+    }
+
+    return NextResponse.json({ bookings: enrichedBookings });
   } catch (error: any) {
     console.error("My bookings fetch error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
