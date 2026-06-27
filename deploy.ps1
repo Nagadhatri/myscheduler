@@ -14,7 +14,7 @@ if ($LASTEXITCODE -eq 0) {
     $branch = (git rev-parse --abbrev-ref HEAD).Trim()
     Write-Host "Current branch detected: $branch" -ForegroundColor Yellow
     
-    $commitMsg = "fix: resolve schema cache relationship issue in visitor tracking"
+    $commitMsg = "fix: remove invalid column from my-bookings api"
     Write-Host "Committing changes..." -ForegroundColor Cyan
     git commit -m $commitMsg
     

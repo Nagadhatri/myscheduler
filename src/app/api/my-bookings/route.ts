@@ -21,7 +21,6 @@ export async function GET(req: Request) {
         id,
         booking_status,
         description,
-        remarks,
         owner_remarks,
         schedule:schedules${ownerId ? '!inner' : ''} (
           title,
