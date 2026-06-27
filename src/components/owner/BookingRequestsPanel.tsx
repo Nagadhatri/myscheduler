@@ -52,7 +52,7 @@ export default function BookingRequestsPanel() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Action failed");
 
-      toast.success(\`Booking \${status.toLowerCase()}\`);
+      toast.success(`Booking ${status.toLowerCase()}`);
       setActionDialog(null);
       setRemarks("");
       fetchBookings();

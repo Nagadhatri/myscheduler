@@ -145,7 +145,7 @@ export default function BookingActionPage({
     <div className="p-6 max-w-2xl mx-auto pt-16">
       <Card className="glass-card border-white/10 shadow-2xl">
         <CardHeader className="text-center pb-6">
-          <div className={\`inline-flex items-center gap-2 px-4 py-2 rounded-full border mb-4 mx-auto \${isAccepting ? 'bg-[var(--status-completed)]/10 border-[var(--status-completed)]/20 text-[var(--status-completed)]' : 'bg-[var(--status-cancelled)]/10 border-[var(--status-cancelled)]/20 text-[var(--status-cancelled)]'}\`}>
+          <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full border mb-4 mx-auto ${isAccepting ? 'bg-[var(--status-completed)]/10 border-[var(--status-completed)]/20 text-[var(--status-completed)]' : 'bg-[var(--status-cancelled)]/10 border-[var(--status-cancelled)]/20 text-[var(--status-cancelled)]'}`}>
             {isAccepting ? <Check className="w-4 h-4" /> : <X className="w-4 h-4" />}
             <span className="font-semibold">
               {isAccepting ? "Accept Booking Request" : "Reject Booking Request"}
@@ -197,7 +197,7 @@ export default function BookingActionPage({
             <Button 
               type="submit" 
               disabled={submitting} 
-              className={\`w-full h-11 \${isAccepting ? 'bg-[var(--status-completed)] hover:bg-[var(--status-completed)]/90 glow-[var(--status-completed)] text-white' : 'bg-[var(--status-cancelled)] hover:bg-[var(--status-cancelled)]/90 glow-[var(--status-cancelled)] text-white'}\`}
+              className={`w-full h-11 ${isAccepting ? 'bg-[var(--status-completed)] hover:bg-[var(--status-completed)]/90 glow-[var(--status-completed)] text-white' : 'bg-[var(--status-cancelled)] hover:bg-[var(--status-cancelled)]/90 glow-[var(--status-cancelled)] text-white'}`}
             >
               {submitting ? (
                 <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Processing...</>
