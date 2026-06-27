@@ -33,19 +33,20 @@ export default function PastBookingLookup() {
     if (!email) return;
 
     setLoading(true);
-    const { data, error } = await supabase
-      .from("bookings")
-      .select("*, schedule:schedules(*)")
-      .eq("visitor_email", email)
-      .order("created_at", { ascending: false });
-
-    setLoading(false);
-    setSearched(true);
-
-    if (error) {
-      toast.error("Error looking up bookings");
-    } else {
-      setResults(data as any);
+    
+    try {
+      const res = await fetch(`/api/my-bookings?email=${encodeURIComponent(email)}`);
+      const data = await res.json();
+      
+      if (data.error) throw new Error(data.error);
+      
+      setResults(data.bookings || []);
+    } catch (err: any) {
+      toast.error(err.message || "Error looking up bookings");
+      setResults([]);
+    } finally {
+      setLoading(false);
+      setSearched(true);
     }
   };
 
