@@ -99,15 +99,11 @@ export default function PastBookingLookup() {
         }
       }}
     >
-      <DialogTrigger
-        render={
-          <Button variant="outline" className="gap-2 border-white/10 hover:bg-white/5">
-            <Search className="w-4 h-4" />
-            Track My Bookings
-          </Button>
-        }
-      >
-        Track My Bookings
+      <DialogTrigger asChild>
+        <Button variant="outline" className="gap-2 border-white/10 hover:bg-white/5 text-xs h-9">
+          <Search className="w-4 h-4" />
+          Track My Bookings
+        </Button>
       </DialogTrigger>
       <DialogContent className="max-w-lg">
         <DialogHeader>

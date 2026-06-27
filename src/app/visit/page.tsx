@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Search, User, ArrowRight, CalendarDays, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import ChatPanel from "@/components/chatbot/ChatPanel";
+import PastBookingLookup from "@/components/visitor/PastBookingLookup";
 
 export default function PublicSearchPortal() {
   const [query, setQuery] = useState("");
@@ -49,9 +50,12 @@ export default function PublicSearchPortal() {
           </div>
           <h1 className="text-lg font-bold tracking-tight gradient-text">MyScheduler</h1>
         </div>
-        <Button variant="outline" className="border-white/10 hover:bg-white/5 text-xs" onClick={() => router.push("/login")}>
-          Sign In
-        </Button>
+        <div className="flex items-center gap-3">
+          <PastBookingLookup />
+          <Button variant="outline" className="border-white/10 hover:bg-white/5 text-xs h-9" onClick={() => router.push("/login")}>
+            Sign In
+          </Button>
+        </div>
       </header>
 
       {/* Main Body */}

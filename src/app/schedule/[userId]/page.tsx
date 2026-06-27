@@ -79,7 +79,7 @@ export default function UserSchedulePage() {
     if (!lookupEmail) return;
     setSearchingBookings(true);
     try {
-      const res = await fetch(`/api/my-bookings?email=${encodeURIComponent(lookupEmail)}`);
+      const res = await fetch(`/api/my-bookings?email=${encodeURIComponent(lookupEmail)}&ownerId=${userId}`);
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       setLookupResults(data.bookings || []);

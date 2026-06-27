@@ -38,23 +38,28 @@ export default function BookingRequestsPanel() {
   ) => {
     setLoading(true);
 
-    const { error } = await supabase
-      .from("bookings")
-      .update({
-        booking_status: status,
-        owner_remarks: notes,
-        action_timestamp: new Date().toISOString(),
-      })
-      .eq("id", bookingId);
+    try {
+      const res = await fetch("/api/booking-action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          bookingId,
+          status,
+          remarks: notes,
+        }),
+      });
 
-    if (error) {
-      toast.error(error.message);
-    } else {
-      toast.success(`Booking ${status.toLowerCase()}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Action failed");
+
+      toast.success(\`Booking \${status.toLowerCase()}\`);
       setActionDialog(null);
       setRemarks("");
       fetchBookings();
+    } catch (error: any) {
+      toast.error(error.message);
     }
+
     setLoading(false);
   };
 

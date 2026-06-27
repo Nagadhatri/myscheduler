@@ -82,7 +82,7 @@ export async function POST(req: Request) {
     // Both connected and non-connected visitors get "Pending" status
     const bookingStatus = "Pending";
 
-    const { error: bookingError } = await supabase
+    const { data: bookingData, error: bookingError } = await supabase
       .from("bookings")
       .insert({
         schedule_id: scheduleData.id,
@@ -90,7 +90,9 @@ export async function POST(req: Request) {
         visitor_email: email,
         description,
         booking_status: bookingStatus,
-      });
+      })
+      .select("id")
+      .single();
 
     if (bookingError) throw bookingError;
 
@@ -102,19 +104,32 @@ export async function POST(req: Request) {
       .single();
 
     if (!ownerError && ownerProfile) {
+      const hostHeader = req.headers.get("host") || "localhost:3000";
+      const protocol = hostHeader.includes("localhost") ? "http" : "https";
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || `${protocol}://${hostHeader}`;
+      const actionBaseUrl = `${baseUrl}/dashboard/action/${bookingData.id}`;
+      
+      const actionLinks = `
+Quick Actions:
+✅ Just Accept: ${actionBaseUrl}?action=Accepted
+💬 Accept with Remarks: ${actionBaseUrl}?action=AcceptedWithRemarks
+❌ Just Reject: ${actionBaseUrl}?action=Rejected
+📝 Reject with Remarks: ${actionBaseUrl}?action=RejectedWithRemarks
+`;
+
       if (isConnected) {
         // Normal notification for acquaintances
         await sendEmailWebhook({
           to: ownerProfile.email,
           subject: `New Booking Request from ${name}`,
-          body: `Hi ${ownerProfile.display_name},\n\nYou have received a new booking request from ${name} (${email}).\n\nMeeting Details:\n- Date: ${date}\n- Time: ${startTime} - ${endTime}\n- Description: ${description}\n\nPlease log in to your MyScheduler Dashboard to accept or reject this request.\n\nBest,\nMyScheduler Team`,
+          body: `Hi ${ownerProfile.display_name},\n\nYou have received a new booking request from ${name} (${email}).\n\nMeeting Details:\n- Date: ${date}\n- Time: ${startTime} - ${endTime}\n- Description: ${description}\n\n${actionLinks}\nOr log in to your MyScheduler Dashboard to manage this request.\n\nBest,\nMyScheduler Team`,
         });
       } else {
         // Special notification for non-acquaintances — owner must approve first
         await sendEmailWebhook({
           to: ownerProfile.email,
           subject: `⚠️ Booking Request from Unknown Person: ${name}`,
-          body: `Hi ${ownerProfile.display_name},\n\n⚠️ Someone who is NOT in your contacts is requesting to book a slot with you.\n\nRequester: ${name} (${email})\n\nMeeting Details:\n- Date: ${date}\n- Time: ${startTime} - ${endTime}\n- Description: ${description}\n\nThis person is not yet your acquaintance. Please log in to your MyScheduler Dashboard to:\n✅ APPROVE — Allow this person to book with you\n❌ REJECT — Decline the request\n\nBest,\nMyScheduler Team`,
+          body: `Hi ${ownerProfile.display_name},\n\n⚠️ Someone who is NOT in your contacts is requesting to book a slot with you.\n\nRequester: ${name} (${email})\n\nMeeting Details:\n- Date: ${date}\n- Time: ${startTime} - ${endTime}\n- Description: ${description}\n\nThis person is not yet your acquaintance.\n\n${actionLinks}\n\nBest,\nMyScheduler Team`,
         });
       }
 
