@@ -348,21 +348,23 @@ export default function ScheduleManagement() {
                       >
                         <Edit className="h-3.5 w-3.5" />
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 hover:bg-orange-500/10"
-                        title="Reschedule"
-                        onClick={() => {
-                          setRescheduleId(s.id);
-                          setRescheduleDate(s.date);
-                          setRescheduleStart(s.start_time.slice(0,5));
-                          setRescheduleEnd(s.end_time.slice(0,5));
-                          setRescheduleDialogOpen(true);
-                        }}
-                      >
-                        <RefreshCw className="h-3.5 w-3.5 text-[var(--status-rescheduled)]" />
-                      </Button>
+                      {s.status === "Upcoming" && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 hover:bg-orange-500/10"
+                          title="Reschedule"
+                          onClick={() => {
+                            setRescheduleId(s.id);
+                            setRescheduleDate(s.date);
+                            setRescheduleStart(s.start_time.slice(0,5));
+                            setRescheduleEnd(s.end_time.slice(0,5));
+                            setRescheduleDialogOpen(true);
+                          }}
+                        >
+                          <RefreshCw className="h-3.5 w-3.5 text-[var(--status-rescheduled)]" />
+                        </Button>
+                      )}
                       <Button
                         variant="ghost"
                         size="icon"

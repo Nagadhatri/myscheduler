@@ -89,10 +89,13 @@ export async function POST(req: Request) {
 
       // 7. Send notification email to the visitor
       try {
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+        const visitorLink = `${appUrl}/visit/${oldSlot.owner_id}`;
+        
         await sendEmailWebhook({
           to: booking.visitor_email,
           subject: `Meeting Rescheduled - MyScheduler`,
-          body: `Hi ${booking.visitor_name},\n\nYour meeting with ${ownerName} (${ownerEmail}) has been rescheduled.\n\nRescheduled Details:\n- New Date: ${newDate}\n- New Time: ${newStartTime} - ${newEndTime}\n\nReason for Rescheduling:\n${reason}\n\nAre you okay with this rescheduled time? If not, you can rearrange your booking slot to the required time of your desire by visiting the visitor portal.\n\nBest,\nMyScheduler Team`,
+          body: `Hi ${booking.visitor_name},\n\nYour meeting with ${ownerName} (${ownerEmail}) has been rescheduled.\n\nRescheduled Details:\n- New Date: ${newDate}\n- New Time: ${newStartTime} - ${newEndTime}\n\nReason for Rescheduling:\n${reason}\n\nAre you okay with this rescheduled time? If not, you can rearrange your booking slot to the required time of your desire by visiting the visitor portal here: ${visitorLink}\n\nBest,\nMyScheduler Team`,
         });
         emailSent = true;
       } catch (emailErr) {
