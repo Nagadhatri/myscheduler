@@ -108,25 +108,26 @@ export async function POST(req: Request) {
       const protocol = hostHeader.includes("localhost") ? "http" : "https";
       const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || `${protocol}://${hostHeader}`;
       const actionBaseUrl = `${baseUrl}/dashboard/action/${bookingData.id}`;
-      const actionLinks = `
-Quick Actions:
-✅ Accept Request: ${actionBaseUrl}?action=Accepted
-❌ Reject Request: ${actionBaseUrl}?action=Rejected
-`;
+      const actionLinksHtml = `
+        <br/><br/>
+        <b>Quick Actions:</b><br/><br/>
+        <a href="${actionBaseUrl}?action=Accepted" style="display:inline-block;padding:10px 15px;background-color:#4CAF50;color:white;text-decoration:none;border-radius:5px;margin-right:10px;">✅ Accept Request</a>
+        <a href="${actionBaseUrl}?action=Rejected" style="display:inline-block;padding:10px 15px;background-color:#f44336;color:white;text-decoration:none;border-radius:5px;">❌ Reject Request</a>
+      `;
 
       if (isConnected) {
         // Normal notification for acquaintances
         await sendEmailWebhook({
           to: ownerProfile.email,
           subject: `New Booking Request from ${name}`,
-          body: `Dear ${ownerProfile.display_name},\n\n${name} has requested to book a slot with you. Kindly confirm whether you would like to accept their request.\n\nMeeting Details:\n- Date: ${date}\n- Time: ${startTime} - ${endTime}\n- Description: ${description}\n\n${actionLinks}\nBest regards,\nMyScheduler Team`,
+          body: `<p>Dear ${ownerProfile.display_name},</p><p><strong>${name}</strong> has requested to book a slot with you. Kindly confirm whether you would like to accept their request.</p><p><b>Meeting Details:</b><br/>- Date: ${date}<br/>- Time: ${startTime} - ${endTime}<br/>- Description: ${description}</p>${actionLinksHtml}<br/><br/><p>Best regards,<br/>MyScheduler Team</p>`,
         });
       } else {
         // Special notification for non-acquaintances — owner must approve first
         await sendEmailWebhook({
           to: ownerProfile.email,
           subject: `⚠️ Booking Request from Unknown Person: ${name}`,
-          body: `Dear ${ownerProfile.display_name},\n\n${name} (who is NOT in your contacts) has requested to book a slot with you. Kindly confirm whether you would like to accept their request.\n\nMeeting Details:\n- Date: ${date}\n- Time: ${startTime} - ${endTime}\n- Description: ${description}\n\n${actionLinks}\nBest regards,\nMyScheduler Team`,
+          body: `<p>Dear ${ownerProfile.display_name},</p><p><strong>${name}</strong> (who is NOT in your contacts) has requested to book a slot with you. Kindly confirm whether you would like to accept their request.</p><p><b>Meeting Details:</b><br/>- Date: ${date}<br/>- Time: ${startTime} - ${endTime}<br/>- Description: ${description}</p>${actionLinksHtml}<br/><br/><p>Best regards,<br/>MyScheduler Team</p>`,
         });
       }
 

@@ -95,7 +95,7 @@ export async function POST(req: Request) {
         await sendEmailWebhook({
           to: booking.visitor_email,
           subject: `Meeting Rescheduled - MyScheduler`,
-          body: `Hi ${booking.visitor_name},\n\nYour meeting with ${ownerName} (${ownerEmail}) has been rescheduled.\n\nRescheduled Details:\n- New Date: ${newDate}\n- New Time: ${newStartTime} - ${newEndTime}\n\nReason for Rescheduling:\n${reason}\n\nAre you okay with this rescheduled time? If not, you can rearrange your booking slot to the required time of your desire by visiting the visitor portal here: ${visitorLink}\n\nBest,\nMyScheduler Team`,
+          body: `<p>Hi ${booking.visitor_name},</p><p>Your meeting with <strong>${ownerName}</strong> (${ownerEmail}) has been rescheduled.</p><p><b>Rescheduled Details:</b><br/>- New Date: ${newDate}<br/>- New Time: ${newStartTime} - ${newEndTime}</p><p><b>Reason for Rescheduling:</b><br/>${reason}</p><p>Are you okay with this rescheduled time? If not, you can rearrange your booking slot to the required time of your desire by visiting the visitor portal here: <a href="${visitorLink}">${visitorLink}</a></p><p>Best,<br/>MyScheduler Team</p>`,
         });
         emailSent = true;
       } catch (emailErr) {
