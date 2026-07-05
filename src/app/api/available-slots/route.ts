@@ -1,18 +1,40 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import fs from "fs";
+import path from "path";
+
+// Helper to get service key even if dev server hasn't been restarted
+function getServiceRoleKey() {
+  if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return process.env.SUPABASE_SERVICE_ROLE_KEY;
+  }
+  try {
+    const envPath = path.resolve(process.cwd(), '.env.local');
+    if (fs.existsSync(envPath)) {
+      const envContent = fs.readFileSync(envPath, 'utf8');
+      const match = envContent.match(/SUPABASE_SERVICE_ROLE_KEY=(.*)/);
+      if (match && match[1]) {
+        return match[1].trim();
+      }
+    }
+  } catch (e) {
+    // ignore
+  }
+  return process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+}
 
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get("userId");
-    const date = searchParams.get("date");
+    const date = searchParams.get("date"); // YYYY-MM-DD
 
     if (!userId || !date) {
-      return NextResponse.json({ error: "Missing userId or date parameters" }, { status: 400 });
+      return NextResponse.json({ error: "Missing userId or date" }, { status: 400 });
     }
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+    const supabaseKey = getServiceRoleKey();
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Fetch schedules that have bookings for this user on this date

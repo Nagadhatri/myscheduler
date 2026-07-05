@@ -1,13 +1,35 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { sendEmailWebhook } from "@/lib/email";
+import fs from "fs";
+import path from "path";
+
+// Helper to get service key even if dev server hasn't been restarted
+function getServiceRoleKey() {
+  if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return process.env.SUPABASE_SERVICE_ROLE_KEY;
+  }
+  try {
+    const envPath = path.resolve(process.cwd(), '.env.local');
+    if (fs.existsSync(envPath)) {
+      const envContent = fs.readFileSync(envPath, 'utf8');
+      const match = envContent.match(/SUPABASE_SERVICE_ROLE_KEY=(.*)/);
+      if (match && match[1]) {
+        return match[1].trim();
+      }
+    }
+  } catch (e) {
+    // ignore
+  }
+  return process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+}
 
 export async function POST(req: Request) {
   try {
     const { userId, date, startTime, endTime, name, email, description } = await req.json();
 
-    if (!userId || !date || !startTime || !endTime || !name || !email || !description) {
-      return NextResponse.json({ error: "Missing required booking details" }, { status: 400 });
+    if (!userId || !date || !startTime || !endTime || !name || !email) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
     if (description.length < 10) {
@@ -15,7 +37,7 @@ export async function POST(req: Request) {
     }
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+    const supabaseKey = getServiceRoleKey();
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Check if visitor is a registered user
@@ -139,7 +161,7 @@ export async function POST(req: Request) {
       await sendEmailWebhook({
         to: email,
         subject: `Booking Request Submitted - MyScheduler`,
-        body: `Hi ${name},\n\n${statusMessage}\n\nMeeting Details:\n- Date: ${date}\n- Time: ${startTime} - ${endTime}\n- Description: ${description}\n\nYou will receive another email once the host responds to your request.\n\nBest,\nMyScheduler Team`,
+        body: `<p>Hi ${name},</p><p>${statusMessage}</p><p><b>Meeting Details:</b><br/>- Date: ${date}<br/>- Time: ${startTime} - ${endTime}<br/>- Description: ${description}</p><p>You will receive another email once the host responds to your request.</p><p>Best,<br/>MyScheduler Team</p>`,
       });
     }
 
