@@ -203,6 +203,7 @@ export default function BookingRequestsPanel() {
                 value={remarks}
                 onChange={(e) => setRemarks(e.target.value)}
                 placeholder="E.g., Please bring your ID."
+                autoComplete="off"
               />
             </div>
           </div>

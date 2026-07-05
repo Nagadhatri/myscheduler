@@ -193,6 +193,7 @@ export default function BookingActionPage({
                 onChange={(e) => setRemarks(e.target.value)}
                 placeholder={isAccepting ? "E.g., Please bring your laptop." : "E.g., I'm busy that day, please pick another slot."}
                 className="bg-background"
+                autoComplete="off"
               />
             </div>
             
