@@ -28,9 +28,16 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
   const fetchSchedules = async () => {
     setLoadingSchedules(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      setLoadingSchedules(false);
+      return;
+    }
+
     const { data, error } = await supabase
       .from('schedules')
       .select('*')
+      .eq('owner_id', user.id)
       .order('date', { ascending: true })
       .order('start_time', { ascending: true });
     
@@ -42,9 +49,16 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
   const fetchBookings = async () => {
     setLoadingBookings(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      setLoadingBookings(false);
+      return;
+    }
+
     const { data, error } = await supabase
       .from('bookings')
       .select('*, schedules!inner(*)')
+      .eq('schedules.owner_id', user.id)
       .order('created_at', { ascending: false });
     
     if (!error && data) {
