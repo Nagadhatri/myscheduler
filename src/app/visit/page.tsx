@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -17,21 +17,40 @@ export default function PublicSearchPortal() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!query.trim()) return;
+  const handleSearch = async (searchQuery: string) => {
+    if (!searchQuery.trim()) {
+      setResults([]);
+      return;
+    }
     setLoading(true);
 
     try {
-      const res = await fetch(`/api/search-people?query=${encodeURIComponent(query)}`);
+      const res = await fetch(`/api/search-people?query=${encodeURIComponent(searchQuery)}`);
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       setResults(data.users || []);
     } catch (err: any) {
-      toast.error(err.message || "Failed to search profiles.");
+      console.error(err);
     } finally {
       setLoading(false);
     }
+  };
+
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      if (query.trim()) {
+        handleSearch(query);
+      } else {
+        setResults([]);
+      }
+    }, 300);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [query]);
+
+  const onSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    handleSearch(query);
   };
 
   return (

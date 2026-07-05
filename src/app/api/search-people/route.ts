@@ -1,5 +1,27 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import fs from "fs";
+import path from "path";
+
+// Helper to get anon key even if dev server hasn't been restarted
+function getAnonKey() {
+  if (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    return process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  }
+  try {
+    const envPath = path.resolve(process.cwd(), '.env.local');
+    if (fs.existsSync(envPath)) {
+      const envContent = fs.readFileSync(envPath, 'utf8');
+      const match = envContent.match(/NEXT_PUBLIC_SUPABASE_ANON_KEY=(.*)/);
+      if (match && match[1]) {
+        return match[1].trim();
+      }
+    }
+  } catch (e) {
+    // ignore
+  }
+  return "";
+}
 
 export async function GET(req: Request) {
   try {
@@ -7,14 +29,13 @@ export async function GET(req: Request) {
     const query = searchParams.get("query") || "";
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    // Use service role key if available to bypass RLS, otherwise fallback to anon key
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+    const anonKey = getAnonKey();
     
-    if (!supabaseUrl || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    if (!supabaseUrl || !anonKey) {
       return NextResponse.json({ users: [] });
     }
 
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = createClient(supabaseUrl, anonKey);
 
     if (query) {
       const { data, error } = await supabase
