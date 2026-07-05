@@ -108,13 +108,10 @@ export async function POST(req: Request) {
       const protocol = hostHeader.includes("localhost") ? "http" : "https";
       const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || `${protocol}://${hostHeader}`;
       const actionBaseUrl = `${baseUrl}/dashboard/action/${bookingData.id}`;
-      
       const actionLinks = `
 Quick Actions:
-✅ Just Accept: ${actionBaseUrl}?action=Accepted
-💬 Accept with Remarks: ${actionBaseUrl}?action=AcceptedWithRemarks
-❌ Just Reject: ${actionBaseUrl}?action=Rejected
-📝 Reject with Remarks: ${actionBaseUrl}?action=RejectedWithRemarks
+✅ Accept Request: ${actionBaseUrl}?action=Accepted
+❌ Reject Request: ${actionBaseUrl}?action=Rejected
 `;
 
       if (isConnected) {
@@ -122,14 +119,14 @@ Quick Actions:
         await sendEmailWebhook({
           to: ownerProfile.email,
           subject: `New Booking Request from ${name}`,
-          body: `Hi ${ownerProfile.display_name},\n\nYou have received a new booking request from ${name} (${email}).\n\nMeeting Details:\n- Date: ${date}\n- Time: ${startTime} - ${endTime}\n- Description: ${description}\n\n${actionLinks}\nOr log in to your MyScheduler Dashboard to manage this request.\n\nBest,\nMyScheduler Team`,
+          body: `Dear ${ownerProfile.display_name},\n\n${name} has requested to book a slot with you. Kindly confirm whether you would like to accept their request.\n\nMeeting Details:\n- Date: ${date}\n- Time: ${startTime} - ${endTime}\n- Description: ${description}\n\n${actionLinks}\nBest regards,\nMyScheduler Team`,
         });
       } else {
         // Special notification for non-acquaintances — owner must approve first
         await sendEmailWebhook({
           to: ownerProfile.email,
           subject: `⚠️ Booking Request from Unknown Person: ${name}`,
-          body: `Hi ${ownerProfile.display_name},\n\n⚠️ Someone who is NOT in your contacts is requesting to book a slot with you.\n\nRequester: ${name} (${email})\n\nMeeting Details:\n- Date: ${date}\n- Time: ${startTime} - ${endTime}\n- Description: ${description}\n\nThis person is not yet your acquaintance.\n\n${actionLinks}\n\nBest,\nMyScheduler Team`,
+          body: `Dear ${ownerProfile.display_name},\n\n${name} (who is NOT in your contacts) has requested to book a slot with you. Kindly confirm whether you would like to accept their request.\n\nMeeting Details:\n- Date: ${date}\n- Time: ${startTime} - ${endTime}\n- Description: ${description}\n\n${actionLinks}\nBest regards,\nMyScheduler Team`,
         });
       }
 

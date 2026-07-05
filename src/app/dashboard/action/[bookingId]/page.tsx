@@ -90,8 +90,11 @@ export default function BookingActionPage({
 
     setSubmitting(true);
     
-    // If it's a rejection with remarks, the status is still "Rejected" in our DB, but we pass the remarks
-    const finalStatus = actionQuery === "AcceptedWithRemarks" ? "Accepted with Remarks" : status;
+    // Automatically upgrade status if remarks are provided
+    let finalStatus = status;
+    if (remarks.trim() !== "") {
+      if (status === "Accepted") finalStatus = "Accepted with Remarks";
+    }
 
     try {
       const res = await fetch("/api/booking-action", {
@@ -182,14 +185,13 @@ export default function BookingActionPage({
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="remarks">
-                Remarks to visitor {(actionQuery === "Accepted" || actionQuery === "Rejected") ? "(Optional)" : "(Required for this action)"}
+                Remarks to visitor (Optional)
               </Label>
               <Input
                 id="remarks"
                 value={remarks}
                 onChange={(e) => setRemarks(e.target.value)}
                 placeholder={isAccepting ? "E.g., Please bring your laptop." : "E.g., I'm busy that day, please pick another slot."}
-                required={actionQuery === "AcceptedWithRemarks" || actionQuery === "RejectedWithRemarks"}
                 className="bg-background"
               />
             </div>
