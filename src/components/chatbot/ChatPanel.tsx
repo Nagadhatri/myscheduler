@@ -86,45 +86,53 @@ function ChatPanelInner({
     window.speechSynthesis.speak(utterance);
   };
 
-  const recognitionRef = useRef<any>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
 
-  const toggleListening = () => {
+  const toggleListening = async () => {
     if (isListening) {
-      if (recognitionRef.current) {
-        recognitionRef.current.stop();
+      if (mediaRecorderRef.current) {
+        mediaRecorderRef.current.stop();
       }
       return;
     }
 
-    // @ts-ignore
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      toast.error("Speech recognition is not supported in your browser.");
-      return;
-    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
 
-    const recognition = new SpeechRecognition();
-    recognitionRef.current = recognition;
-    recognition.continuous = true;
-    recognition.interimResults = true;
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          audioChunksRef.current.push(e.data);
+        }
+      };
 
-    recognition.onstart = () => setIsListening(true);
-    recognition.onend = () => setIsListening(false);
-    recognition.onerror = (e: any) => {
+      mediaRecorder.onstop = () => {
+        setIsListening(false);
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        
+        // Stop all tracks to release microphone
+        stream.getTracks().forEach(track => track.stop());
+
+        // Convert Blob to Base64
+        const reader = new FileReader();
+        reader.readAsDataURL(audioBlob);
+        reader.onloadend = () => {
+          const base64data = reader.result as string; // data:audio/webm;base64,....
+          const base64Audio = base64data.split(',')[1];
+          // Send immediately
+          sendMessage("", messages, base64Audio);
+        };
+      };
+
+      mediaRecorder.start();
+      setIsListening(true);
+    } catch (err: any) {
+      toast.error("Microphone error: " + err.message);
       setIsListening(false);
-      if (e.error !== 'no-speech') {
-        toast.error("Microphone error: " + e.error);
-      }
-    };
-    recognition.onresult = (e: any) => {
-      let fullTranscript = '';
-      for (let i = 0; i < e.results.length; ++i) {
-        fullTranscript += e.results[i][0].transcript;
-      }
-      setInput(fullTranscript);
-    };
-
-    recognition.start();
+    }
   };
 
   const renderFormattedText = (text: string) => {
@@ -221,9 +229,10 @@ function ChatPanelInner({
 
   const sendMessage = async (
     newInput: string,
-    currentHistory: Message[] = messages
+    currentHistory: Message[] = messages,
+    audioData?: string
   ) => {
-    if (!newInput.trim() && currentHistory[currentHistory.length - 1]?.role !== "function") return;
+    if (!newInput.trim() && !audioData && currentHistory[currentHistory.length - 1]?.role !== "function") return;
 
     let historyToPass = [...currentHistory];
 
@@ -231,6 +240,9 @@ function ChatPanelInner({
       historyToPass.push({ role: "user", text: newInput });
       setMessages(historyToPass);
       setInput("");
+    } else if (audioData) {
+      historyToPass.push({ role: "user", text: "🎤 *Audio Message*" });
+      setMessages(historyToPass);
     }
 
     setLoading(true);
@@ -239,11 +251,16 @@ function ChatPanelInner({
       const lastMsg = historyToPass[historyToPass.length - 1];
       const isFunction = lastMsg?.role === "function";
       
-      const payload = {
+      const payload: any = {
         history: isFunction ? historyToPass : historyToPass.slice(0, -1),
         message: isFunction ? JSON.stringify(lastMsg.response || {}) : (lastMsg?.text || ""),
         context,
       };
+
+      if (audioData) {
+        payload.audioData = audioData;
+        payload.message = "Please listen to this audio message and respond.";
+      }
 
       const res = await fetch("/api/chat", {
         method: "POST",
@@ -724,12 +741,12 @@ function ChatPanelInner({
             <form
               onSubmit={(e) => {
                 e.preventDefault();
-                if (isListening && recognitionRef.current) {
-                  recognitionRef.current.stop();
+                if (isListening && mediaRecorderRef.current) {
+                  mediaRecorderRef.current.stop();
                 }
                 sendMessage(input);
               }}
-              className="flex gap-2"
+              className="flex gap-2 relative"
             >
               <Input
                 value={input}
