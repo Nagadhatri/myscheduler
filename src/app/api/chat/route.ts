@@ -1553,7 +1553,16 @@ CRITICAL RULES:
           contents.push({ role: "user", parts: [{ text: message }] });
         }
 
-        const modelsToTry = [GEMINI_MODEL, "gemini-2.5-flash", "gemini-1.5-flash"];
+        const modelsToTry = [
+          GEMINI_MODEL,
+          "gemini-2.0-flash",
+          "gemini-1.5-flash-latest",
+          "gemini-1.5-flash",
+          "gemini-1.5-pro",
+          "gemini-1.5-flash-8b",
+          "gemini-pro"
+        ];
+        
         let response;
         for (const modelName of modelsToTry) {
           try {

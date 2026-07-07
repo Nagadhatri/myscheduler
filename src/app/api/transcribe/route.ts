@@ -18,7 +18,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "No audio data provided." }, { status: 400 });
     }
 
-    const modelsToTry = [GEMINI_MODEL, "gemini-2.5-flash", "gemini-1.5-flash"];
+    const modelsToTry = [
+      GEMINI_MODEL,
+      "gemini-2.0-flash",
+      "gemini-1.5-flash-latest",
+      "gemini-1.5-flash",
+      "gemini-1.5-pro",
+      "gemini-1.5-flash-8b",
+      "gemini-pro"
+    ];
     let response;
     for (const modelName of modelsToTry) {
       try {
@@ -52,8 +60,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ transcript });
   } catch (error: any) {
     console.error("Transcription API Error:", error);
+    let errorMsg = error.message;
+    if (errorMsg.includes("is not found")) {
+      errorMsg = "None of the fallback Gemini models were found. Check your API key and model permissions.";
+    }
     return NextResponse.json(
-      { error: `Failed to transcribe: ${error.message}` },
+      { error: `Failed to transcribe: ${errorMsg}` },
       { status: 500 }
     );
   }
