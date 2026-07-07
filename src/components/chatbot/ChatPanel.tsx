@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { format } from "date-fns";
-import { MessageCircle, X, Send, Bot, Sparkles, Trash2 } from "lucide-react";
+import { MessageCircle, X, Send, Bot, Sparkles, Trash2, Mic, MicOff, Volume2, VolumeX, Globe } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { ChatErrorBoundary } from "./ChatErrorBoundary";
@@ -41,6 +41,10 @@ function ChatPanelInner({
     args: any;
   } | null>(null);
   
+  const [isListening, setIsListening] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [voiceEnabled, setVoiceEnabled] = useState(true);
+  
   const scrollRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
   const router = useRouter();
@@ -64,6 +68,51 @@ function ChatPanelInner({
       saveChat(messages, selectedChatDate || undefined);
     }
   }, [messages, selectedChatDate]);
+
+  const speakText = (text: string) => {
+    if (!voiceEnabled || !window.speechSynthesis) return;
+
+    // Remove markdown symbols and emojis before speaking
+    const cleanText = text.replace(/\*\*|\[|\]|\(.*?\)|⚠️|✅|❌|🔄|⏳|📅|📋|👥|🔍|👤|🏠|🔐|📝|✨|😊|👋|⏰|🤝|🗑️|🎉|📧/g, "").trim();
+    if (!cleanText) return;
+
+    window.speechSynthesis.cancel(); // cancel any ongoing speech
+    const utterance = new SpeechSynthesisUtterance(cleanText);
+
+    utterance.onstart = () => setIsSpeaking(true);
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => setIsSpeaking(false);
+
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const startListening = () => {
+    // @ts-ignore
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      toast.error("Speech recognition is not supported in your browser.");
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    recognition.onstart = () => setIsListening(true);
+    recognition.onend = () => setIsListening(false);
+    recognition.onerror = (e: any) => {
+      setIsListening(false);
+      if (e.error !== 'no-speech') {
+        toast.error("Microphone error: " + e.error);
+      }
+    };
+    recognition.onresult = (e: any) => {
+      const transcript = e.results[0][0].transcript;
+      sendMessage(transcript);
+    };
+
+    recognition.start();
+  };
 
   const renderFormattedText = (text: string) => {
     if (!text) return null;
@@ -202,6 +251,7 @@ function ChatPanelInner({
 
       if (data.type === "text") {
         setMessages((prev) => [...prev, { role: "model", text: data.text }]);
+        speakText(data.text);
       } else if (data.type === "function_call") {
         const call = data.functionCall;
         setMessages((prev) => [
@@ -523,6 +573,16 @@ function ChatPanelInner({
             <div className="flex items-center gap-1">
               <button
                 className="w-7 h-7 rounded-lg hover:bg-white/10 flex items-center justify-center transition-colors cursor-pointer"
+                onClick={() => {
+                  if (voiceEnabled) window.speechSynthesis?.cancel();
+                  setVoiceEnabled(!voiceEnabled);
+                }}
+                title={voiceEnabled ? "Mute Bot Voice" : "Unmute Bot Voice"}
+              >
+                {voiceEnabled ? <Volume2 className="w-4 h-4 text-white" /> : <VolumeX className="w-4 h-4 text-white/50" />}
+              </button>
+              <button
+                className="w-7 h-7 rounded-lg hover:bg-white/10 flex items-center justify-center transition-colors cursor-pointer"
                 onClick={clearChat}
                 title="Clear chat"
               >
@@ -642,7 +702,12 @@ function ChatPanelInner({
           </ScrollArea>
 
           {/* Input */}
-          <div className="p-3 border-t border-white/5 bg-card">
+          <div className="p-3 border-t border-white/5 bg-card flex flex-col gap-2">
+            {isSpeaking && (
+               <div className="flex items-center justify-end px-1">
+                 <span className="text-[10px] text-primary animate-pulse">Bot is speaking...</span>
+               </div>
+            )}
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -661,6 +726,17 @@ function ChatPanelInner({
                 disabled={loading || !!pendingCall}
                 className="bg-white/5 border-white/5 text-sm"
               />
+              <Button
+                type="button"
+                size="icon"
+                variant="outline"
+                className={`flex-shrink-0 border-white/10 ${isListening ? "bg-red-500/20 text-red-500 border-red-500/50 animate-pulse" : ""}`}
+                onClick={startListening}
+                disabled={loading || !!pendingCall}
+                title="Speak (Microphone)"
+              >
+                {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+              </Button>
               <Button
                 type="submit"
                 size="icon"
