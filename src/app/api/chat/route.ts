@@ -1499,7 +1499,7 @@ const VISITOR_TOOLS = [
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { history, message, context, audioData } = body;
+    const { history, message, context } = body;
 
     // Try Gemini First if available
     let geminiFailed = false;
@@ -1520,8 +1520,7 @@ CRITICAL RULES:
 4. If the user asks to reschedule a meeting, use the 'rescheduleSlot' tool. (Find the slot ID first if needed).
 5. Be natural, helpful, and conversational. Do not use repetitive robotic greetings.
 6. GLOBAL LANGUAGE MIRRORING: You must reply in the EXACT language and dialect the user speaks to you in. If they speak Spanish, reply in Spanish. If they speak Hinglish, reply in Hinglish. If they speak Telugu or Telglish (Telugu-English mix), reply in Telglish. 
-7. AUDIO UNDERSTANDING: If the user provides an audio message, listen to it carefully. Understand the language they spoke and reply back in that exact same language!
-8. STRICT PROJECT SCOPE: You are a scheduling assistant. If the user asks ANY general knowledge, off-topic, or chit-chat questions (e.g., "who is the president?", "what is the capital of France?"), you MUST politely refuse to answer and remind them that you can only help with scheduling and platform navigation.`;
+7. STRICT PROJECT SCOPE: You are a scheduling assistant. If the user asks ANY general knowledge, off-topic, or chit-chat questions (e.g., "who is the president?", "what is the capital of France?"), you MUST politely refuse to answer and remind them that you can only help with scheduling and platform navigation.`;
 
         const visitorSystemInstruction = PLATFORM_KNOWLEDGE + `
 
@@ -1535,8 +1534,7 @@ To book an appointment:
 
 CRITICAL RULES:
 1. GLOBAL LANGUAGE MIRRORING: You must reply in the EXACT language and dialect the user speaks to you in. If they speak Spanish, reply in Spanish. If they speak Hinglish, reply in Hinglish. If they speak Telugu or Telglish (Telugu-English mix), reply in Telglish.
-2. AUDIO UNDERSTANDING: If the user provides an audio message, listen to it carefully. Understand the language they spoke and reply back in that exact same language!
-3. STRICT PROJECT SCOPE: You are a scheduling assistant. If the user asks ANY general knowledge, off-topic, or chit-chat questions (e.g., "tell me a joke", "who is the president?"), you MUST politely refuse to answer and remind them that you can only help with scheduling and platform navigation.`;
+2. STRICT PROJECT SCOPE: You are a scheduling assistant. If the user asks ANY general knowledge, off-topic, or chit-chat questions (e.g., "tell me a joke", "who is the president?"), you MUST politely refuse to answer and remind them that you can only help with scheduling and platform navigation.`;
         
         const systemInstruction = context === "owner" ? ownerSystemInstruction : visitorSystemInstruction;
         const tools = context === "owner" ? OWNER_TOOLS : VISITOR_TOOLS;
@@ -1553,18 +1551,8 @@ CRITICAL RULES:
           return { role: "user", parts: [{ text: msg.text || "" }] };
         });
 
-        if (message || audioData) {
-          const parts: any[] = [];
-          if (message) parts.push({ text: message });
-          if (audioData) {
-             parts.push({
-               inlineData: {
-                 data: audioData,
-                 mimeType: "audio/webm",
-               }
-             });
-          }
-          contents.push({ role: "user", parts });
+        if (message) {
+          contents.push({ role: "user", parts: [{ text: message }] });
         }
 
         const modelsToTry = [GEMINI_MODEL, "gemini-2.5-flash", "gemini-1.5-flash"];

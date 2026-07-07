@@ -119,11 +119,32 @@ function ChatPanelInner({
         // Convert Blob to Base64
         const reader = new FileReader();
         reader.readAsDataURL(audioBlob);
-        reader.onloadend = () => {
-          const base64data = reader.result as string; // data:audio/webm;base64,....
+        reader.onloadend = async () => {
+          const base64data = reader.result as string; 
           const base64Audio = base64data.split(',')[1];
-          // Send immediately
-          sendMessage("", messages, base64Audio);
+          
+          setLoading(true);
+          try {
+            const res = await fetch("/api/transcribe", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ audioData: base64Audio })
+            });
+            const data = await res.json();
+            
+            if (data.transcript) {
+               // Put it in the input box so the user sees it
+               setInput(data.transcript);
+               // Auto-send it to the chat
+               sendMessage(data.transcript);
+            } else if (data.error) {
+               toast.error("Transcription error: " + data.error);
+            }
+          } catch (e: any) {
+             toast.error("Failed to transcribe: " + e.message);
+          } finally {
+             setLoading(false);
+          }
         };
       };
 
@@ -229,10 +250,9 @@ function ChatPanelInner({
 
   const sendMessage = async (
     newInput: string,
-    currentHistory: Message[] = messages,
-    audioData?: string
+    currentHistory: Message[] = messages
   ) => {
-    if (!newInput.trim() && !audioData && currentHistory[currentHistory.length - 1]?.role !== "function") return;
+    if (!newInput.trim() && currentHistory[currentHistory.length - 1]?.role !== "function") return;
 
     let historyToPass = [...currentHistory];
 
@@ -240,9 +260,6 @@ function ChatPanelInner({
       historyToPass.push({ role: "user", text: newInput });
       setMessages(historyToPass);
       setInput("");
-    } else if (audioData) {
-      historyToPass.push({ role: "user", text: "🎤 *Audio Message*" });
-      setMessages(historyToPass);
     }
 
     setLoading(true);
@@ -256,11 +273,6 @@ function ChatPanelInner({
         message: isFunction ? JSON.stringify(lastMsg.response || {}) : (lastMsg?.text || ""),
         context,
       };
-
-      if (audioData) {
-        payload.audioData = audioData;
-        payload.message = "Please listen to this audio message and respond.";
-      }
 
       const res = await fetch("/api/chat", {
         method: "POST",
