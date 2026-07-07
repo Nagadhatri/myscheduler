@@ -86,7 +86,16 @@ function ChatPanelInner({
     window.speechSynthesis.speak(utterance);
   };
 
-  const startListening = () => {
+  const recognitionRef = useRef<any>(null);
+
+  const toggleListening = () => {
+    if (isListening) {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+      return;
+    }
+
     // @ts-ignore
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
@@ -95,8 +104,9 @@ function ChatPanelInner({
     }
 
     const recognition = new SpeechRecognition();
-    recognition.continuous = false;
-    recognition.interimResults = false;
+    recognitionRef.current = recognition;
+    recognition.continuous = true;
+    recognition.interimResults = true;
 
     recognition.onstart = () => setIsListening(true);
     recognition.onend = () => setIsListening(false);
@@ -107,8 +117,11 @@ function ChatPanelInner({
       }
     };
     recognition.onresult = (e: any) => {
-      const transcript = e.results[0][0].transcript;
-      sendMessage(transcript);
+      let fullTranscript = '';
+      for (let i = 0; i < e.results.length; ++i) {
+        fullTranscript += e.results[i][0].transcript;
+      }
+      setInput(fullTranscript);
     };
 
     recognition.start();
@@ -711,6 +724,9 @@ function ChatPanelInner({
             <form
               onSubmit={(e) => {
                 e.preventDefault();
+                if (isListening && recognitionRef.current) {
+                  recognitionRef.current.stop();
+                }
                 sendMessage(input);
               }}
               className="flex gap-2"
@@ -731,7 +747,7 @@ function ChatPanelInner({
                 size="icon"
                 variant="outline"
                 className={`flex-shrink-0 border-white/10 ${isListening ? "bg-red-500/20 text-red-500 border-red-500/50 animate-pulse" : ""}`}
-                onClick={startListening}
+                onClick={toggleListening}
                 disabled={loading || !!pendingCall}
                 title="Speak (Microphone)"
               >
