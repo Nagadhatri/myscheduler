@@ -11,7 +11,8 @@ export async function POST(req: Request) {
 
   try {
     const body = await req.json();
-    const { audioData } = body;
+    const { audioData, mimeType } = body;
+    const actualMimeType = mimeType || "audio/webm";
 
     if (!audioData) {
       return NextResponse.json({ error: "No audio data provided." }, { status: 400 });
@@ -30,7 +31,7 @@ export async function POST(req: Request) {
                 {
                   inlineData: {
                     data: audioData,
-                    mimeType: "audio/webm",
+                    mimeType: actualMimeType,
                   },
                 },
                 {
@@ -52,7 +53,7 @@ export async function POST(req: Request) {
   } catch (error: any) {
     console.error("Transcription API Error:", error);
     return NextResponse.json(
-      { error: "Failed to transcribe audio. Please try again." },
+      { error: `Failed to transcribe: ${error.message}` },
       { status: 500 }
     );
   }

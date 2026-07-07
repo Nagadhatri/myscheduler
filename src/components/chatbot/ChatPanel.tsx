@@ -99,9 +99,10 @@ function ChatPanelInner({
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      const mediaRecorder = new MediaRecorder(stream); // Let browser choose mimeType
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
+      const actualMimeType = mediaRecorder.mimeType || "audio/webm";
 
       mediaRecorder.ondataavailable = (e) => {
         if (e.data.size > 0) {
@@ -111,7 +112,7 @@ function ChatPanelInner({
 
       mediaRecorder.onstop = () => {
         setIsListening(false);
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const audioBlob = new Blob(audioChunksRef.current, { type: actualMimeType });
         
         // Stop all tracks to release microphone
         stream.getTracks().forEach(track => track.stop());
@@ -128,7 +129,7 @@ function ChatPanelInner({
             const res = await fetch("/api/transcribe", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ audioData: base64Audio })
+              body: JSON.stringify({ audioData: base64Audio, mimeType: actualMimeType })
             });
             const data = await res.json();
             
