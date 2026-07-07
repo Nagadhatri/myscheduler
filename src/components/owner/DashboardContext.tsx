@@ -14,12 +14,15 @@ interface DashboardContextType {
   loadingBookings: boolean;
   fetchSchedules: () => Promise<void>;
   fetchBookings: () => Promise<void>;
+  selectedChatDate: string | null;
+  setSelectedChatDate: (date: string | null) => void;
 }
 
 const DashboardContext = createContext<DashboardContextType | undefined>(undefined);
 
 export function DashboardProvider({ children }: { children: ReactNode }) {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [selectedChatDate, setSelectedChatDate] = useState<string | null>(null);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loadingSchedules, setLoadingSchedules] = useState(true);
@@ -88,6 +91,8 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         loadingBookings,
         fetchSchedules,
         fetchBookings,
+        selectedChatDate,
+        setSelectedChatDate,
       }}
     >
       {children}

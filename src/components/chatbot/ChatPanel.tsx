@@ -10,9 +10,10 @@ import { MessageCircle, X, Send, Bot, Sparkles, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { ChatErrorBoundary } from "./ChatErrorBoundary";
+import { useChatHistory } from "./useChatHistory";
 
 type Role = "user" | "model" | "function";
-type Message = {
+export type Message = {
   role: Role;
   text?: string;
   functionCall?: { name: string; args: any };
@@ -24,10 +25,12 @@ function ChatPanelInner({
   context,
   targetUserId,
   mode = "floating",
+  selectedChatDate,
 }: {
   context: "owner" | "visitor";
   targetUserId?: string;
   mode?: "floating" | "inline";
+  selectedChatDate?: string | null;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState("");
@@ -37,9 +40,30 @@ function ChatPanelInner({
     name: string;
     args: any;
   } | null>(null);
+  
   const scrollRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
   const router = useRouter();
+  
+  const { saveChat, loadChat } = useChatHistory(context);
+  
+  // Load chat history when selected date changes or on mount
+  useEffect(() => {
+    if (selectedChatDate) {
+      setMessages(loadChat(selectedChatDate));
+    } else {
+      // Default to today if not provided, or clear if forced
+      const today = format(new Date(), "yyyy-MM-dd");
+      setMessages(loadChat(today));
+    }
+  }, [selectedChatDate, context]);
+
+  // Save chat history whenever messages change (only if there are messages)
+  useEffect(() => {
+    if (messages.length > 0) {
+      saveChat(messages, selectedChatDate || undefined);
+    }
+  }, [messages, selectedChatDate]);
 
   const renderFormattedText = (text: string) => {
     if (!text) return null;
@@ -657,6 +681,7 @@ export default function ChatPanel(props: {
   context: "owner" | "visitor";
   targetUserId?: string;
   mode?: "floating" | "inline";
+  selectedChatDate?: string | null;
 }) {
   return (
     <ChatErrorBoundary>
