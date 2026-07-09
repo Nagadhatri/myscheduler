@@ -50,12 +50,24 @@ export default function ReportsPanel() {
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      if (!res.ok) {
+        let errMsg = data.error || "Failed to generate report";
+        try {
+          const parsed = JSON.parse(errMsg);
+          if (parsed.error && parsed.error.message) errMsg = parsed.error.message;
+        } catch {}
+        throw new Error(errMsg);
+      }
 
       setGeneratedReport(data.report.content);
       toast.success("Report generated successfully!");
     } catch (error: any) {
-      toast.error(error.message || "Failed to generate report");
+      let finalMsg = error.message || "Failed to generate report";
+      try {
+        const parsed = JSON.parse(finalMsg);
+        if (parsed.error && parsed.error.message) finalMsg = parsed.error.message;
+      } catch {}
+      toast.error(finalMsg);
     } finally {
       setLoading(false);
     }
