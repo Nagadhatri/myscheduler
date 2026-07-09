@@ -7,15 +7,25 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { BookingStatusType, Schedule } from "@/types";
-import { History, Clock, CheckCircle2, XCircle, AlertCircle, Search } from "lucide-react";
+import { History, Clock, CheckCircle2, XCircle, AlertCircle, Search, Filter } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
 
 export default function BookingHistory() {
   const { bookings } = useDashboard();
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("All");
+  const [dateFilter, setDateFilter] = useState("");
 
   const historyBookings = bookings.filter(
     (b) => {
       if (b.booking_status === "Pending") return false;
+      if (statusFilter !== "All" && b.booking_status !== statusFilter) return false;
+      
+      const s = (b as any).schedule as Schedule;
+      if (dateFilter && s?.date !== dateFilter) return false;
+
       if (!searchQuery.trim()) return true;
       const lowerQ = searchQuery.toLowerCase();
       return b.visitor_name.toLowerCase().includes(lowerQ) || b.booking_status.toLowerCase().includes(lowerQ);
@@ -59,14 +69,51 @@ export default function BookingHistory() {
             <History className="w-4 h-4 text-muted-foreground" />
             History
           </CardTitle>
-          <div className="relative w-40">
-            <Search className="w-3.5 h-3.5 absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input 
-              placeholder="Search..." 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-8 pl-7 text-xs bg-white/5 border-white/10"
-            />
+          <div className="flex items-center gap-2">
+            <Popover>
+              <PopoverTrigger render={
+                <Button variant="ghost" size="icon" className="w-8 h-8 hover:bg-white/5 relative">
+                  <Filter className="w-4 h-4 text-muted-foreground" />
+                  {(statusFilter !== "All" || dateFilter) && (
+                    <span className="absolute top-1 right-1 w-2 h-2 bg-primary rounded-full" />
+                  )}
+                </Button>
+              } />
+              <PopoverContent align="end" className="w-56 p-3 space-y-3 bg-card/95 border-white/10 backdrop-blur-xl z-50">
+                <div className="space-y-1.5">
+                  <label className="text-xs text-muted-foreground font-medium">Status</label>
+                  <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v || "All")}>
+                    <SelectTrigger className="h-8 text-xs bg-white/5 border-white/10">
+                      <SelectValue placeholder="All Statuses" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="All">All Statuses</SelectItem>
+                      <SelectItem value="Accepted">Accepted</SelectItem>
+                      <SelectItem value="Cancelled">Cancelled</SelectItem>
+                      <SelectItem value="Rescheduled">Rescheduled</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs text-muted-foreground font-medium">Date</label>
+                  <Input type="date" value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} className="h-8 text-xs bg-white/5 border-white/10" />
+                </div>
+                {(statusFilter !== "All" || dateFilter) && (
+                  <Button variant="ghost" className="w-full text-xs h-8 text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => { setStatusFilter("All"); setDateFilter(""); }}>
+                    Clear Filters
+                  </Button>
+                )}
+              </PopoverContent>
+            </Popover>
+            <div className="relative w-36">
+              <Search className="w-3.5 h-3.5 absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input 
+                placeholder="Search..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-8 pl-7 text-xs bg-white/5 border-white/10"
+              />
+            </div>
           </div>
         </div>
       </CardHeader>

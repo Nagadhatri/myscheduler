@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useDashboard } from "./DashboardContext";
 import { createClient } from "@/lib/supabase/client";
 import { format } from "date-fns";
@@ -26,7 +26,7 @@ import {
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Schedule, ScheduleCategory, ScheduleStatus } from "@/types";
-import { Trash2, Edit, Plus, Clock, ListChecks, RefreshCw, FileText } from "lucide-react";
+import { Trash2, Edit, Plus, Clock, ListChecks, RefreshCw, FileText, Users, BarChart3, Tent, BookOpen, Pin } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import MeetingMinutesDialog from "./MeetingMinutesDialog";
 
@@ -45,18 +45,18 @@ const getStatusColor = (status: ScheduleStatus) => {
   }
 };
 
-const getCategoryEmoji = (cat: string) => {
+const getCategoryIcon = (cat: string) => {
   switch (cat) {
     case "Meeting":
-      return "🤝";
+      return <Users className="w-4 h-4 text-blue-400" />;
     case "Presentation":
-      return "📊";
+      return <BarChart3 className="w-4 h-4 text-purple-400" />;
     case "Event Participation":
-      return "🎪";
+      return <Tent className="w-4 h-4 text-orange-400" />;
     case "Learning":
-      return "📚";
+      return <BookOpen className="w-4 h-4 text-green-400" />;
     default:
-      return "📌";
+      return <Pin className="w-4 h-4 text-zinc-400" />;
   }
 };
 
@@ -87,6 +87,15 @@ export default function ScheduleManagement() {
 
   const formattedDate = format(selectedDate, "yyyy-MM-dd");
   const daySchedules = schedules.filter((s) => s.date === formattedDate);
+
+  useEffect(() => {
+    const handleOpenAddSlot = () => {
+      resetForm();
+      setIsDialogOpen(true);
+    };
+    window.addEventListener("open-add-slot", handleOpenAddSlot);
+    return () => window.removeEventListener("open-add-slot", handleOpenAddSlot);
+  }, []);
 
   const resetForm = () => {
     setEditingId(null);
@@ -264,19 +273,29 @@ export default function ScheduleManagement() {
               </div>
               <div className="space-y-2">
                 <Label>Category</Label>
-                <Select
-                  value={category}
-                  onValueChange={(v) => setCategory(v as ScheduleCategory)}
-                >
+                  <Select
+                    value={category}
+                    onValueChange={(v) => { if (v) setCategory(v as ScheduleCategory) }}
+                  >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Meeting">🤝 Meeting</SelectItem>
-                    <SelectItem value="Presentation">📊 Presentation</SelectItem>
-                    <SelectItem value="Event Participation">🎪 Event Participation</SelectItem>
-                    <SelectItem value="Learning">📚 Learning</SelectItem>
-                    <SelectItem value="Other">📌 Other</SelectItem>
+                    <SelectItem value="Meeting">
+                      <div className="flex items-center gap-2"><Users className="w-4 h-4 text-blue-400"/> Meeting</div>
+                    </SelectItem>
+                    <SelectItem value="Presentation">
+                      <div className="flex items-center gap-2"><BarChart3 className="w-4 h-4 text-purple-400"/> Presentation</div>
+                    </SelectItem>
+                    <SelectItem value="Event Participation">
+                      <div className="flex items-center gap-2"><Tent className="w-4 h-4 text-orange-400"/> Event Participation</div>
+                    </SelectItem>
+                    <SelectItem value="Learning">
+                      <div className="flex items-center gap-2"><BookOpen className="w-4 h-4 text-green-400"/> Learning</div>
+                    </SelectItem>
+                    <SelectItem value="Other">
+                      <div className="flex items-center gap-2"><Pin className="w-4 h-4 text-zinc-400"/> Other</div>
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -285,7 +304,7 @@ export default function ScheduleManagement() {
                   <Label>Status</Label>
                   <Select
                     value={status}
-                    onValueChange={(v) => setStatus(v as ScheduleStatus)}
+                    onValueChange={(v) => { if (v) setStatus(v as ScheduleStatus) }}
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -328,12 +347,14 @@ export default function ScheduleManagement() {
               {daySchedules.map((s) => (
                 <div
                   key={s.id}
-                  className="slot-card p-4 rounded-xl border border-white/5 bg-white/[0.02] space-y-2"
+                  draggable
+                  onDragStart={(e) => e.dataTransfer.setData("slotId", s.id)}
+                  className="slot-card p-4 rounded-xl border border-white/5 bg-white/[0.02] space-y-2 cursor-grab active:cursor-grabbing"
                 >
                   <div className="flex justify-between items-start">
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
-                        <span>{getCategoryEmoji(s.category)}</span>
+                        {getCategoryIcon(s.category)}
                         <h4 className="font-semibold text-sm">{s.title}</h4>
                       </div>
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">

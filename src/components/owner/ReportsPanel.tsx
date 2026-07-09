@@ -17,6 +17,7 @@ export default function ReportsPanel() {
   const [dateTo, setDateTo] = useState("");
   const [loading, setLoading] = useState(false);
   const [generatedReport, setGeneratedReport] = useState<string | null>(null);
+  const [cooldown, setCooldown] = useState(0);
 
   const handleGenerate = async () => {
     setLoading(true);
@@ -67,7 +68,23 @@ export default function ReportsPanel() {
         const parsed = JSON.parse(finalMsg);
         if (parsed.error && parsed.error.message) finalMsg = parsed.error.message;
       } catch {}
-      toast.error(finalMsg);
+
+      const lowerMsg = finalMsg.toLowerCase();
+      if (lowerMsg.includes("quota") || lowerMsg.includes("429") || lowerMsg.includes("rate limit")) {
+        toast.error("Report generation is temporarily unavailable. Please try again later.");
+        setCooldown(60);
+        const timer = setInterval(() => {
+          setCooldown((prev) => {
+            if (prev <= 1) {
+              clearInterval(timer);
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+      } else {
+        toast.error(finalMsg);
+      }
     } finally {
       setLoading(false);
     }
@@ -84,6 +101,26 @@ export default function ReportsPanel() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadPDF = async () => {
+    if (!generatedReport) return;
+    const element = document.getElementById("report-content");
+    if (!element) return;
+    try {
+      const html2pdf = (await import("html2pdf.js")).default;
+      const opt = {
+        margin: 0.5,
+        filename: `Report_${reportType}_${new Date().getTime()}.pdf`,
+        image: { type: 'jpeg' as const, quality: 0.98 },
+        html2canvas: { scale: 2 },
+        jsPDF: { unit: 'in' as const, format: 'letter' as const, orientation: 'portrait' as const }
+      };
+      html2pdf().set(opt).from(element).save();
+      toast.success("PDF exported successfully!");
+    } catch (e: any) {
+      toast.error("Failed to export PDF.");
+    }
   };
 
   return (
@@ -130,21 +167,21 @@ export default function ReportsPanel() {
                 </div>
               )}
 
-              <Button onClick={handleGenerate} disabled={loading} className="w-full glow-primary">
+              <Button onClick={handleGenerate} disabled={loading || cooldown > 0} className="w-full glow-primary">
                 {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <FileText className="w-4 h-4 mr-2" />}
-                {loading ? "Generating Report..." : "Generate AI Report"}
+                {cooldown > 0 ? `Try again in ${cooldown}s` : loading ? "Generating Report..." : "Generate AI Report"}
               </Button>
             </>
           ) : (
             <div className="space-y-4">
-              <div className="max-h-[300px] overflow-y-auto bg-black/20 p-3 rounded-lg text-sm markdown-body prose prose-invert">
+              <div id="report-content" className="max-h-[300px] overflow-y-auto bg-black/20 p-4 rounded-lg text-sm markdown-body prose prose-invert">
                 <ReactMarkdown>{generatedReport}</ReactMarkdown>
               </div>
               
               <div className="flex gap-2">
-                <Button variant="outline" className="flex-1 text-xs" onClick={() => handleDownload("md")}>
+                <Button variant="outline" className="flex-1 text-xs" onClick={handleDownloadPDF}>
                   <Download className="w-3.5 h-3.5 mr-1" />
-                  Download MD
+                  Export PDF
                 </Button>
                 <Button variant="outline" className="flex-1 text-xs" onClick={() => handleDownload("csv")}>
                   <FileDown className="w-3.5 h-3.5 mr-1" />
