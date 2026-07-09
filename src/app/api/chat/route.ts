@@ -533,7 +533,7 @@ function buildVisitorResponse(intent: Intent, text: string, history: any[]): any
     default:
       return {
         type: "text",
-        text: `Got it! Just to be sure, are you trying to **book a slot**, **check a schedule**, or **find someone**? (Try saying something like "book with Ritu")`,
+        text: `(Offline Mode) It seems your Google AI quota is exceeded so I am running in basic offline mode. Are you trying to **book a slot**, **check a schedule**, or **find someone**? (Try saying something like "book with Ritu")`,
       };
   }
 }

@@ -79,6 +79,15 @@ function ChatPanelInner({
     window.speechSynthesis.cancel(); // cancel any ongoing speech
     const utterance = new SpeechSynthesisUtterance(cleanText);
 
+    // Find a good native Indian English voice, or default English
+    const voices = window.speechSynthesis.getVoices();
+    let selectedVoice = voices.find(v => v.lang === 'en-IN' && v.name.includes('Google'));
+    if (!selectedVoice) selectedVoice = voices.find(v => v.lang === 'en-IN');
+    if (!selectedVoice) selectedVoice = voices.find(v => v.lang.startsWith('en-') && v.name.includes('Google'));
+    if (selectedVoice) {
+      utterance.voice = selectedVoice;
+    }
+
     utterance.onstart = () => setIsSpeaking(true);
     utterance.onend = () => setIsSpeaking(false);
     utterance.onerror = () => setIsSpeaking(false);
@@ -115,7 +124,7 @@ function ChatPanelInner({
 
       const recognition = new SpeechRecognition();
       recognitionRef.current = recognition;
-      recognition.lang = 'en-US';
+      recognition.lang = 'en-IN';
       recognition.interimResults = false;
       recognition.maxAlternatives = 1;
 
