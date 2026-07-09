@@ -88,18 +88,24 @@ function ChatPanelInner({
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  const [isTranscribing, setIsTranscribing] = useState(false);
 
   const toggleListening = async () => {
+    // If currently listening, stop recording
     if (isListening) {
-      if (mediaRecorderRef.current) {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
         mediaRecorderRef.current.stop();
       }
       return;
     }
 
+    // Cancel any ongoing bot speech when user starts talking
+    window.speechSynthesis.cancel();
+    setIsSpeaking(false);
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream); // Let browser choose mimeType
+      const mediaRecorder = new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
       const actualMimeType = mediaRecorder.mimeType || "audio/webm";
@@ -112,19 +118,25 @@ function ChatPanelInner({
 
       mediaRecorder.onstop = () => {
         setIsListening(false);
-        const audioBlob = new Blob(audioChunksRef.current, { type: actualMimeType });
-        
-        // Stop all tracks to release microphone
+
+        // Release microphone immediately
         stream.getTracks().forEach(track => track.stop());
 
-        // Convert Blob to Base64
+        const audioBlob = new Blob(audioChunksRef.current, { type: actualMimeType });
+        
+        // Don't send if audio is too small (accidental click)
+        if (audioBlob.size < 1000) {
+          return;
+        }
+
+        // Convert Blob to Base64 and transcribe
         const reader = new FileReader();
         reader.readAsDataURL(audioBlob);
         reader.onloadend = async () => {
           const base64data = reader.result as string; 
           const base64Audio = base64data.split(',')[1];
           
-          setLoading(true);
+          setIsTranscribing(true);
           try {
             const res = await fetch("/api/transcribe", {
               method: "POST",
@@ -133,18 +145,17 @@ function ChatPanelInner({
             });
             const data = await res.json();
             
-            if (data.transcript) {
-               // Put it in the input box so the user sees it
-               setInput(data.transcript);
-               // Auto-send it to the chat
-               sendMessage(data.transcript);
+            if (data.transcript && data.transcript.trim()) {
+               sendMessage(data.transcript.trim());
             } else if (data.error) {
-               toast.error("Transcription error: " + data.error);
+               toast.error(data.error);
+            } else {
+               toast.error("Could not understand. Please try again.");
             }
           } catch (e: any) {
-             toast.error("Failed to transcribe: " + e.message);
+             toast.error("Network error. Please try again.");
           } finally {
-             setLoading(false);
+             setIsTranscribing(false);
           }
         };
       };
@@ -152,7 +163,7 @@ function ChatPanelInner({
       mediaRecorder.start();
       setIsListening(true);
     } catch (err: any) {
-      toast.error("Microphone error: " + err.message);
+      toast.error("Microphone access denied. Please allow microphone in your browser settings.");
       setIsListening(false);
     }
   };
@@ -746,6 +757,29 @@ function ChatPanelInner({
 
           {/* Input */}
           <div className="p-3 border-t border-white/5 bg-card flex flex-col gap-2">
+            {/* Status indicators */}
+            {isListening && (
+              <div className="flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-red-500/10 border border-red-500/20">
+                <div className="flex items-center gap-1">
+                  <div className="w-1.5 h-3 bg-red-500 rounded-full animate-pulse" style={{ animationDuration: '0.5s' }} />
+                  <div className="w-1.5 h-5 bg-red-500 rounded-full animate-pulse" style={{ animationDuration: '0.3s' }} />
+                  <div className="w-1.5 h-4 bg-red-500 rounded-full animate-pulse" style={{ animationDuration: '0.7s' }} />
+                  <div className="w-1.5 h-6 bg-red-500 rounded-full animate-pulse" style={{ animationDuration: '0.4s' }} />
+                  <div className="w-1.5 h-3 bg-red-500 rounded-full animate-pulse" style={{ animationDuration: '0.6s' }} />
+                </div>
+                <span className="text-xs text-red-400 font-medium ml-2">Listening... Tap mic to stop</span>
+              </div>
+            )}
+            {isTranscribing && (
+              <div className="flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-primary/10 border border-primary/20">
+                <div className="flex gap-1">
+                  <div className="w-2 h-2 rounded-full bg-primary animate-bounce" />
+                  <div className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: "0.15s" }} />
+                  <div className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: "0.3s" }} />
+                </div>
+                <span className="text-xs text-primary font-medium">Understanding your speech...</span>
+              </div>
+            )}
             {isSpeaking && (
                <div className="flex items-center justify-end px-1">
                  <span className="text-[10px] text-primary animate-pulse">Bot is speaking...</span>
@@ -765,28 +799,30 @@ function ChatPanelInner({
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder={
+                  isListening ? "🎤 Speak now..." :
+                  isTranscribing ? "Processing your speech..." :
                   context === "visitor"
                     ? "Book a slot, check status..."
                     : "Manage schedule, view bookings..."
                 }
-                disabled={loading || !!pendingCall}
+                disabled={loading || !!pendingCall || isListening || isTranscribing}
                 className="bg-white/5 border-white/5 text-sm"
               />
               <Button
                 type="button"
                 size="icon"
                 variant="outline"
-                className={`flex-shrink-0 border-white/10 ${isListening ? "bg-red-500/20 text-red-500 border-red-500/50 animate-pulse" : ""}`}
+                className={`flex-shrink-0 border-white/10 transition-all duration-200 ${isListening ? "bg-red-500/20 text-red-500 border-red-500/50 animate-pulse shadow-lg shadow-red-500/20" : isTranscribing ? "bg-primary/20 text-primary border-primary/50" : ""}`}
                 onClick={toggleListening}
-                disabled={loading || !!pendingCall}
-                title="Speak (Microphone)"
+                disabled={loading || !!pendingCall || isTranscribing}
+                title={isListening ? "Stop listening" : "Speak (Microphone)"}
               >
                 {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
               </Button>
               <Button
                 type="submit"
                 size="icon"
-                disabled={!input.trim() || loading || !!pendingCall}
+                disabled={!input.trim() || loading || !!pendingCall || isListening || isTranscribing}
                 className="glow-primary flex-shrink-0"
               >
                 <Send className="w-4 h-4" />

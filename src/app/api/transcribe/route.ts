@@ -18,17 +18,19 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "No audio data provided." }, { status: 400 });
     }
 
+    // Try models in order. gemini-2.5-flash is the confirmed working model.
     const modelsToTry = [
       GEMINI_MODEL,
+      "gemini-2.5-flash",
       "gemini-2.0-flash",
-      "gemini-1.5-flash-latest",
-      "gemini-1.5-flash",
-      "gemini-1.5-pro",
-      "gemini-1.5-flash-8b",
-      "gemini-pro"
     ];
+
+    // Deduplicate
+    const uniqueModels = [...new Set(modelsToTry)];
+
     let response;
-    for (const modelName of modelsToTry) {
+    let lastError: any;
+    for (const modelName of uniqueModels) {
       try {
         response = await genAI.models.generateContent({
           model: modelName,
@@ -43,29 +45,31 @@ export async function POST(req: Request) {
                   },
                 },
                 {
-                  text: "Transcribe the speech in this audio exactly as it was spoken. Output ONLY the raw transcribed text. Do not add any explanations, formatting, or translation. If it's Telugu, output Telugu script or Telglish depending on how it sounds. If it's Spanish, output Spanish. Just output the literal words spoken.",
+                  text: "Transcribe the speech in this audio exactly as it was spoken. Output ONLY the raw transcribed text, nothing else. No explanations, no formatting, no translation. Preserve the original language exactly. If it is Telugu, output in Telugu script or Romanized Telugu. If Spanish, output Spanish. Just the literal spoken words.",
                 },
               ],
             },
           ],
         });
-        break; // break on success
+        break;
       } catch (e: any) {
-        if (modelName === modelsToTry[modelsToTry.length - 1]) throw e;
+        lastError = e;
+        console.warn(`Transcription model ${modelName} failed:`, e.message?.substring(0, 100));
+        continue;
       }
     }
 
-    const transcript = response?.text?.trim() || "";
+    if (!response) {
+      throw lastError || new Error("All models failed");
+    }
+
+    const transcript = response.text?.trim() || "";
 
     return NextResponse.json({ transcript });
   } catch (error: any) {
     console.error("Transcription API Error:", error);
-    let errorMsg = error.message;
-    if (errorMsg.includes("is not found")) {
-      errorMsg = "None of the fallback Gemini models were found. Check your API key and model permissions.";
-    }
     return NextResponse.json(
-      { error: `Failed to transcribe: ${errorMsg}` },
+      { error: `Transcription failed: ${error.message?.substring(0, 200)}` },
       { status: 500 }
     );
   }
