@@ -87,85 +87,77 @@ function ChatPanelInner({
   };
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
+  const audioChunksRef = useRef<BlobPart[]>([]);
+  const recognitionRef = useRef<any>(null);
   const [isTranscribing, setIsTranscribing] = useState(false);
 
-  const toggleListening = async () => {
-    // If currently listening, stop recording
+  const toggleListening = () => {
     if (isListening) {
-      if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
-        mediaRecorderRef.current.stop();
-      }
-      return;
+      handleRecordingStop();
+    } else {
+      handleRecordingStart();
     }
+  };
+
+  const handleRecordingStart = async () => {
+    if (isListening) return;
 
     // Cancel any ongoing bot speech when user starts talking
     window.speechSynthesis.cancel();
     setIsSpeaking(false);
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
-      audioChunksRef.current = [];
-      const actualMimeType = mediaRecorder.mimeType || "audio/webm";
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        toast.error("Voice recognition is not supported in this browser. Please type your message.");
+        return;
+      }
 
-      mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) {
-          audioChunksRef.current.push(e.data);
+      const recognition = new SpeechRecognition();
+      recognitionRef.current = recognition;
+      recognition.lang = 'en-US';
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+
+      recognition.onstart = () => {
+        setIsListening(true);
+      };
+
+      recognition.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        if (transcript && transcript.trim()) {
+           sendMessage(transcript.trim());
         }
       };
 
-      mediaRecorder.onstop = () => {
+      recognition.onerror = (event: any) => {
+        if (event.error !== 'no-speech' && event.error !== 'aborted') {
+          toast.error(`Microphone error: ${event.error}`);
+        }
         setIsListening(false);
-
-        // Release microphone immediately
-        stream.getTracks().forEach(track => track.stop());
-
-        const audioBlob = new Blob(audioChunksRef.current, { type: actualMimeType });
-        
-        // Don't send if audio is too small (accidental click)
-        if (audioBlob.size < 1000) {
-          return;
-        }
-
-        // Convert Blob to Base64 and transcribe
-        const reader = new FileReader();
-        reader.readAsDataURL(audioBlob);
-        reader.onloadend = async () => {
-          const base64data = reader.result as string; 
-          const base64Audio = base64data.split(',')[1];
-          
-          setIsTranscribing(true);
-          try {
-            const res = await fetch("/api/transcribe", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ audioData: base64Audio, mimeType: actualMimeType })
-            });
-            const data = await res.json();
-            
-            if (data.transcript && data.transcript.trim()) {
-               sendMessage(data.transcript.trim());
-            } else if (data.error) {
-               toast.error(data.error);
-            } else {
-               toast.error("Could not understand. Please try again.");
-            }
-          } catch (e: any) {
-             toast.error("Network error. Please try again.");
-          } finally {
-             setIsTranscribing(false);
-          }
-        };
       };
 
-      mediaRecorder.start();
-      setIsListening(true);
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognition.start();
     } catch (err: any) {
-      toast.error("Microphone access denied. Please allow microphone in your browser settings.");
+      toast.error("Microphone access denied or error occurred.");
       setIsListening(false);
     }
+  };
+
+  const handleRecordingStop = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+      mediaRecorderRef.current.stop();
+    }
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch (e) {}
+    }
+    setIsListening(false);
   };
 
   const renderFormattedText = (text: string) => {
@@ -791,8 +783,8 @@ function ChatPanelInner({
             <form
               onSubmit={(e) => {
                 e.preventDefault();
-                if (isListening && mediaRecorderRef.current) {
-                  mediaRecorderRef.current.stop();
+                if (isListening) {
+                  handleRecordingStop();
                 }
                 sendMessage(input);
               }}
