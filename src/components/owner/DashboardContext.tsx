@@ -78,6 +78,14 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     fetchSchedules();
     fetchBookings();
+
+    const handleBookingUpdate = () => {
+      fetchSchedules();
+      fetchBookings();
+    };
+
+    window.addEventListener("booking-updated", handleBookingUpdate);
+    return () => window.removeEventListener("booking-updated", handleBookingUpdate);
   }, []);
 
   return (
