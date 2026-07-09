@@ -49,3 +49,34 @@ export interface Booking {
   created_at: string;
   updated_at: string;
 }
+
+export interface MeetingMinutes {
+  id: string;
+  schedule_id: string;
+  owner_id: string;
+  content: string;
+  source: 'manual' | 'voice';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Report {
+  id: string;
+  owner_id: string;
+  report_type: 'daily' | 'weekly' | 'monthly' | 'custom';
+  date_from: string;
+  date_to: string;
+  content: string;
+  created_at: string;
+}
+
+export interface AppNotification {
+  id: string;
+  user_id: string;
+  type: string;
+  title: string;
+  message: string;
+  related_id: string | null;
+  is_read: boolean;
+  created_at: string;
+}

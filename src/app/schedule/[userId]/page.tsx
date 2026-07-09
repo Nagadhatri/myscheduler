@@ -289,58 +289,7 @@ export default function UserSchedulePage() {
             </CardContent>
           </Card>
 
-          {/* Track Bookings Panel */}
-          <Card className="glass-card border-white/5">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Search className="w-5 h-5 text-primary" />
-                Track My Bookings
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleLookup} className="flex gap-2 mb-4">
-                <Input
-                  type="email"
-                  required
-                  placeholder="you@example.com"
-                  value={lookupEmail}
-                  onChange={(e) => setLookupEmail(e.target.value)}
-                  className="bg-white/5 border-white/10 text-xs"
-                />
-                <Button type="submit" disabled={searchingBookings} className="glow-primary flex-shrink-0 text-xs h-9">
-                  {searchingBookings ? "..." : "Search"}
-                </Button>
-              </form>
 
-              {lookupResults.length > 0 && (
-                <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
-                  {lookupResults.map((b) => (
-                    <div key={b.id} className="p-3 rounded-xl border border-white/5 bg-white/[0.02] space-y-2">
-                      <div className="flex items-center justify-between">
-                        <p className="font-semibold text-xs truncate mr-2">
-                          {b.schedule?.owner?.display_name || "Host"}
-                        </p>
-                        <Badge className={`text-[10px] ${
-                          b.booking_status === "Accepted" || b.booking_status === "Accepted with Remarks"
-                            ? "bg-[var(--status-completed)]/10 text-[var(--status-completed)] border-[var(--status-completed)]/20"
-                            : b.booking_status === "Rejected"
-                              ? "bg-[var(--status-cancelled)]/10 text-[var(--status-cancelled)] border-[var(--status-cancelled)]/20"
-                              : b.booking_status === "Rescheduled"
-                                ? "bg-[var(--status-rescheduled)]/10 text-[var(--status-rescheduled)] border-[var(--status-rescheduled)]/20"
-                                : "bg-primary/10 text-primary border-primary/20"
-                        }`}>
-                          {b.booking_status}
-                        </Badge>
-                      </div>
-                      <p className="text-[10px] text-muted-foreground">
-                        {b.schedule?.date} | {formatTime(b.schedule?.start_time)}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
         </div>
 
         {/* Middle Column: Available Slots */}

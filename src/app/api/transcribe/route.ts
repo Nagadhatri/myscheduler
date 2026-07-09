@@ -45,7 +45,7 @@ export async function POST(req: Request) {
                   },
                 },
                 {
-                  text: "Transcribe the speech in this audio exactly as it was spoken. Output ONLY the raw transcribed text, nothing else. No explanations, no formatting, no translation. Preserve the original language exactly. If it is Telugu, output in Telugu script or Romanized Telugu. If Spanish, output Spanish. Just the literal spoken words.",
+                  text: "Transcribe the speech in this audio exactly as it was spoken. Output ONLY the raw transcribed text, nothing else. DO NOT use markdown formatting, DO NOT wrap the text in quotes, DO NOT output any labels like 'Transcript:'. Preserve the original language exactly. If the user speaks in Telugu, output in Telugu script. If Spanish, output Spanish. Just the literal spoken words.",
                 },
               ],
             },

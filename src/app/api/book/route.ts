@@ -163,6 +163,15 @@ export async function POST(req: Request) {
         subject: `Booking Request Submitted - MyScheduler`,
         body: `<p>Hi ${name},</p><p>${statusMessage}</p><p><b>Meeting Details:</b><br/>- Date: ${date}<br/>- Time: ${startTime} - ${endTime}<br/>- Description: ${description}</p><p>You will receive another email once the host responds to your request.</p><p>Best,<br/>MyScheduler Team</p>`,
       });
+      
+      // Send in-app notification to the owner
+      await supabase.from("notifications").insert({
+        user_id: userId,
+        type: "booking_request",
+        title: isConnected ? "New Booking Request" : "New Booking Request (Unknown Visitor)",
+        message: `${name} requested a meeting on ${date} at ${startTime}.`,
+        related_id: bookingData.id,
+      });
     }
 
     const successMessage = isConnected

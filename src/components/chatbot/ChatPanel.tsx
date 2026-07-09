@@ -325,6 +325,8 @@ function ChatPanelInner({
             "getCurrentUser",
             "getPageOwner",
             "navigateToPage",
+            "generateReport",
+            "getMeetingMinutes",
           ].includes(call.name)
         ) {
           await handleFunctionExecution(call.name, call.args, [
@@ -557,6 +559,28 @@ function ChatPanelInner({
         });
         if (error) throw error;
         responseObj = { success: true, message: `Password reset link has been sent to ${args.email}.` };
+      } else if (name === "generateReport") {
+        const res = await fetch("/api/reports", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            reportType: args.reportType,
+            dateFrom: args.dateFrom,
+            dateTo: args.dateTo,
+          }),
+        });
+        const resData = await res.json();
+        if (resData.error) throw new Error(resData.error);
+        responseObj = { success: true, report: resData.report.content };
+      } else if (name === "getMeetingMinutes") {
+        let url = "/api/meeting-minutes?";
+        if (args.scheduleId) url += `scheduleId=${args.scheduleId}`;
+        else if (args.date) url += `date=${args.date}`;
+        
+        const res = await fetch(url);
+        const resData = await res.json();
+        if (resData.error) throw new Error(resData.error);
+        responseObj = { success: true, minutes: resData.minutes || null };
       }
     } catch (err: any) {
       responseObj = { success: false, error: err.message };
@@ -608,7 +632,7 @@ function ChatPanelInner({
           className={
             mode === "floating" 
               ? "fixed bottom-6 right-6 w-80 md:w-96 h-[520px] flex flex-col z-50 rounded-2xl overflow-hidden shadow-2xl border border-white/10 bg-card/95 backdrop-blur-xl"
-              : "w-full h-full flex flex-col rounded-2xl overflow-hidden border border-white/10 bg-card/50 backdrop-blur-md min-h-[500px]"
+              : "w-full flex flex-col rounded-2xl overflow-hidden border border-white/10 bg-card/50 backdrop-blur-md h-[600px]"
           }
         >
           {/* Header */}

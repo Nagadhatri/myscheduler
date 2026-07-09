@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { LayoutDashboard, LogOut, Users, CalendarDays } from "lucide-react";
 import Link from "next/link";
+import NotificationsDropdown from "@/components/owner/NotificationsDropdown";
+import ReportsPanel from "@/components/owner/ReportsPanel";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -56,15 +58,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             })}
           </nav>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleLogout}
-          className="gap-2 border-white/10 hover:bg-white/5"
-        >
-          <LogOut className="w-4 h-4" />
-          Logout
-        </Button>
+        <div className="flex items-center gap-2">
+          <ReportsPanel />
+          <NotificationsDropdown />
+          <div className="w-px h-4 bg-white/10 mx-1" />
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleLogout}
+            className="gap-2 text-muted-foreground hover:text-white hover:bg-white/5"
+          >
+            <LogOut className="w-4 h-4" />
+            <span className="hidden sm:inline">Logout</span>
+          </Button>
+        </div>
       </header>
 
       <main className="relative z-10 flex-1">{children}</main>

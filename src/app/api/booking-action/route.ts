@@ -73,6 +73,23 @@ export async function POST(req: Request) {
       subject: emailSubject,
       body: emailBody,
     });
+    
+    // Attempt to find the visitor in profiles to send an in-app notification
+    const { data: visitorProfile } = await supabaseAdmin
+      .from("profiles")
+      .select("id")
+      .eq("email", visitorEmail)
+      .maybeSingle();
+
+    if (visitorProfile) {
+      await supabaseAdmin.from("notifications").insert({
+        user_id: visitorProfile.id,
+        type: `booking_${status.toLowerCase()}`,
+        title: `Booking Request ${status}`,
+        message: `${ownerName} has ${status.toLowerCase()} your request for ${booking.schedule.date}.`,
+        related_id: bookingId,
+      });
+    }
 
     return NextResponse.json({ success: true, message: `Booking ${status.toLowerCase()} successfully.` });
   } catch (error: any) {

@@ -26,8 +26,9 @@ import {
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Schedule, ScheduleCategory, ScheduleStatus } from "@/types";
-import { Trash2, Edit, Plus, Clock, ListChecks, RefreshCw } from "lucide-react";
+import { Trash2, Edit, Plus, Clock, ListChecks, RefreshCw, FileText } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import MeetingMinutesDialog from "./MeetingMinutesDialog";
 
 const getStatusColor = (status: ScheduleStatus) => {
   switch (status) {
@@ -77,6 +78,10 @@ export default function ScheduleManagement() {
   const [rescheduleDialogOpen, setRescheduleDialogOpen] = useState(false);
   const [rescheduleReason, setRescheduleReason] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // MoM state
+  const [momDialogOpen, setMomDialogOpen] = useState(false);
+  const [selectedMomSchedule, setSelectedMomSchedule] = useState<Schedule | null>(null);
 
   const supabase = createClient();
 
@@ -365,6 +370,20 @@ export default function ScheduleManagement() {
                           <RefreshCw className="h-3.5 w-3.5 text-[var(--status-rescheduled)]" />
                         </Button>
                       )}
+                      {s.status === "Completed" && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2 text-xs hover:bg-emerald-500/10 text-emerald-400 gap-1 border border-emerald-500/20 bg-emerald-500/5 mr-1"
+                          onClick={() => {
+                            setSelectedMomSchedule(s);
+                            setMomDialogOpen(true);
+                          }}
+                        >
+                          <FileText className="w-3.5 h-3.5" />
+                          <span className="hidden sm:inline">Minutes</span>
+                        </Button>
+                      )}
                       <Button
                         variant="ghost"
                         size="icon"
@@ -435,6 +454,15 @@ export default function ScheduleManagement() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <MeetingMinutesDialog
+        open={momDialogOpen}
+        onOpenChange={(open) => {
+          setMomDialogOpen(open);
+          if (!open) setSelectedMomSchedule(null);
+        }}
+        schedule={selectedMomSchedule}
+      />
     </Card>
   );
 }
