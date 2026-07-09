@@ -39,15 +39,26 @@ async def process_audio(websocket, path):
                     if text:
                         print(f"[TEXT IN] User says: {text}")
                         # Forward to Rasa
-                        rasa_res = requests.post(RASA_WEBHOOK, json={"sender": "user", "message": text})
-                        rasa_res.raise_for_status()
-                        replies = rasa_res.json()
-                        for reply in replies:
-                            bot_text = reply.get('text', '')
-                            if bot_text:
-                                print(f"[RASA NLP] Bot says: {bot_text}")
-                                await websocket.send(json.dumps({"type": "bot", "text": bot_text}))
-                                speak(bot_text)
+                        try:
+                            rasa_res = requests.post(RASA_WEBHOOK, json={"sender": "user", "message": text})
+                            rasa_res.raise_for_status()
+                            replies = rasa_res.json()
+                            for reply in replies:
+                                bot_text = reply.get('text', '')
+                                if bot_text:
+                                    print(f"[RASA NLP] Bot says: {bot_text}")
+                                    await websocket.send(json.dumps({"type": "bot", "text": bot_text}))
+                                    speak(bot_text)
+                        except requests.exceptions.ConnectionError:
+                            print("Rasa is not ready yet.")
+                            msg = "I'm still waking up! Please give me a few seconds."
+                            await websocket.send(json.dumps({"type": "bot", "text": msg}))
+                            speak(msg)
+                        except Exception as e:
+                            print(f"Rasa error: {e}")
+                            msg = "Sorry, my brain encountered an error."
+                            await websocket.send(json.dumps({"type": "bot", "text": msg}))
+                            speak(msg)
                 except Exception as e:
                     print(f"Error processing text message: {e}")
             else:
@@ -75,9 +86,16 @@ async def process_audio(websocket, path):
                                     await websocket.send(json.dumps({"type": "bot", "text": bot_text}))
                                     # Speak it!
                                     speak(bot_text)
+                        except requests.exceptions.ConnectionError:
+                            print("Rasa is not ready yet.")
+                            msg = "I'm still waking up! Please give me a few seconds."
+                            await websocket.send(json.dumps({"type": "bot", "text": msg}))
+                            speak(msg)
                         except Exception as e:
                             print(f"Rasa error: {e}")
-                            await websocket.send(json.dumps({"type": "bot", "text": "Sorry, my brain is offline."}))
+                            msg = "Sorry, my brain encountered an error."
+                            await websocket.send(json.dumps({"type": "bot", "text": msg}))
+                            speak(msg)
                 else:
                     partial = json.loads(recognizer.PartialResult())
                     if partial.get('partial'):

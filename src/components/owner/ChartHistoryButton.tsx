@@ -17,16 +17,8 @@ export default function ChartHistoryButton() {
           View Chat History
         </Button>
       } />
-      <DialogContent className="max-w-md bg-card/95 backdrop-blur-xl border-white/10 p-0 overflow-hidden">
-        <DialogHeader className="px-6 py-4 border-b border-white/5 bg-primary/10">
-          <DialogTitle className="flex items-center gap-2 text-primary">
-            <MessageSquare className="w-5 h-5" />
-            Chat History
-          </DialogTitle>
-        </DialogHeader>
-        <div className="p-4 bg-background/50">
-          <ChatHistorySidebar />
-        </div>
+      <DialogContent className="max-w-md bg-transparent border-none shadow-none p-0 overflow-hidden">
+        <ChatHistorySidebar />
       </DialogContent>
     </Dialog>
   );
