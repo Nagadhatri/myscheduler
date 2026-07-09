@@ -1,17 +1,25 @@
 "use client";
 
+import { useState } from "react";
 import { useDashboard } from "./DashboardContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { BookingStatusType, Schedule } from "@/types";
-import { History, Clock, CheckCircle2, XCircle, AlertCircle } from "lucide-react";
+import { History, Clock, CheckCircle2, XCircle, AlertCircle, Search } from "lucide-react";
 
 export default function BookingHistory() {
   const { bookings } = useDashboard();
+  const [searchQuery, setSearchQuery] = useState("");
 
   const historyBookings = bookings.filter(
-    (b) => b.booking_status !== "Pending"
+    (b) => {
+      if (b.booking_status === "Pending") return false;
+      if (!searchQuery.trim()) return true;
+      const lowerQ = searchQuery.toLowerCase();
+      return b.visitor_name.toLowerCase().includes(lowerQ) || b.booking_status.toLowerCase().includes(lowerQ);
+    }
   );
 
   const getStatusIcon = (status: BookingStatusType) => {
@@ -46,17 +54,28 @@ export default function BookingHistory() {
   return (
     <Card className="glass-card border-white/5">
       <CardHeader className="py-3 border-b border-white/5">
-        <CardTitle className="flex items-center gap-2 text-base">
-          <History className="w-4 h-4 text-muted-foreground" />
-          History
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <History className="w-4 h-4 text-muted-foreground" />
+            History
+          </CardTitle>
+          <div className="relative w-40">
+            <Search className="w-3.5 h-3.5 absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input 
+              placeholder="Search..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="h-8 pl-7 text-xs bg-white/5 border-white/10"
+            />
+          </div>
+        </div>
       </CardHeader>
       <CardContent className="p-0">
         <ScrollArea className="h-[250px] px-6 py-2">
           {historyBookings.length === 0 ? (
             <div className="text-center py-10 text-muted-foreground">
               <History className="w-8 h-8 mx-auto mb-2 opacity-30" />
-              <p className="text-sm">No history yet</p>
+              <p className="text-sm">No history found</p>
             </div>
           ) : (
             <div className="space-y-3">

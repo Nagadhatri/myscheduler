@@ -112,6 +112,6 @@ export async function POST(req: Request) {
     });
   } catch (error: any) {
     console.error("Reschedule API error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: "An unexpected server error occurred." }, { status: 500 });
   }
 }

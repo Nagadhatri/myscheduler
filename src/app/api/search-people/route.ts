@@ -51,6 +51,6 @@ export async function GET(req: Request) {
     return NextResponse.json({ users: [] });
   } catch (error: any) {
     console.error("Search people API error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: "An unexpected server error occurred." }, { status: 500 });
   }
 }

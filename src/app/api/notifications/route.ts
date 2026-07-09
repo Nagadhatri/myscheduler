@@ -24,7 +24,7 @@ export async function GET(req: Request) {
 
   const { data, error } = await query;
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: "An unexpected server error occurred." }, { status: 500 });
   }
 
   return NextResponse.json({ notifications: data || [] });
@@ -48,7 +48,7 @@ export async function PATCH(req: Request) {
       .eq("is_read", false);
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: "An unexpected server error occurred." }, { status: 500 });
     }
     return NextResponse.json({ success: true });
   }
@@ -61,7 +61,7 @@ export async function PATCH(req: Request) {
       .eq("user_id", user.id);
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: "An unexpected server error occurred." }, { status: 500 });
     }
     return NextResponse.json({ success: true });
   }

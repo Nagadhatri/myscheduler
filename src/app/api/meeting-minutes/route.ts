@@ -24,7 +24,7 @@ export async function GET(req: Request) {
     .limit(1);
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: "An unexpected server error occurred." }, { status: 500 });
   }
 
   return NextResponse.json({ minutes: data?.[0] || null });
@@ -66,7 +66,7 @@ export async function POST(req: Request) {
       .single();
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: "An unexpected server error occurred." }, { status: 500 });
     }
     return NextResponse.json({ minutes: data, updated: true });
   } else {
@@ -83,7 +83,7 @@ export async function POST(req: Request) {
       .single();
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: "An unexpected server error occurred." }, { status: 500 });
     }
     return NextResponse.json({ minutes: data, created: true });
   }

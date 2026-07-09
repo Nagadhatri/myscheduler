@@ -782,28 +782,7 @@ function ChatPanelInner({
           {/* Input */}
           <div className="p-3 border-t border-white/5 bg-card flex flex-col gap-2">
             {/* Status indicators */}
-            {isListening && (
-              <div className="flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-red-500/10 border border-red-500/20">
-                <div className="flex items-center gap-1">
-                  <div className="w-1.5 h-3 bg-red-500 rounded-full animate-pulse" style={{ animationDuration: '0.5s' }} />
-                  <div className="w-1.5 h-5 bg-red-500 rounded-full animate-pulse" style={{ animationDuration: '0.3s' }} />
-                  <div className="w-1.5 h-4 bg-red-500 rounded-full animate-pulse" style={{ animationDuration: '0.7s' }} />
-                  <div className="w-1.5 h-6 bg-red-500 rounded-full animate-pulse" style={{ animationDuration: '0.4s' }} />
-                  <div className="w-1.5 h-3 bg-red-500 rounded-full animate-pulse" style={{ animationDuration: '0.6s' }} />
-                </div>
-                <span className="text-xs text-red-400 font-medium ml-2">Listening... Tap mic to stop</span>
-              </div>
-            )}
-            {isTranscribing && (
-              <div className="flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-primary/10 border border-primary/20">
-                <div className="flex gap-1">
-                  <div className="w-2 h-2 rounded-full bg-primary animate-bounce" />
-                  <div className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: "0.15s" }} />
-                  <div className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: "0.3s" }} />
-                </div>
-                <span className="text-xs text-primary font-medium">Understanding your speech...</span>
-              </div>
-            )}
+
             {isSpeaking && (
                <div className="flex items-center justify-end px-1">
                  <span className="text-[10px] text-primary animate-pulse">Bot is speaking...</span>
@@ -836,6 +815,7 @@ function ChatPanelInner({
                 type="button"
                 size="icon"
                 variant="outline"
+                aria-label="Toggle microphone"
                 className={`flex-shrink-0 border-white/10 transition-all duration-200 ${isListening ? "bg-red-500/20 text-red-500 border-red-500/50 animate-pulse shadow-lg shadow-red-500/20" : isTranscribing ? "bg-primary/20 text-primary border-primary/50" : ""}`}
                 onClick={toggleListening}
                 disabled={loading || !!pendingCall || isTranscribing}
@@ -846,6 +826,7 @@ function ChatPanelInner({
               <Button
                 type="submit"
                 size="icon"
+                aria-label="Send message"
                 disabled={!input.trim() || loading || !!pendingCall || isListening || isTranscribing}
                 className="glow-primary flex-shrink-0"
               >
