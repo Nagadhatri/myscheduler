@@ -68,8 +68,23 @@ export async function POST(req: Request) {
     return NextResponse.json({ transcript });
   } catch (error: any) {
     console.error("Transcription API Error:", error);
+    let cleanMsg = "An unknown error occurred.";
+    try {
+      // Try to parse the ugly JSON string error thrown by the SDK
+      const errObj = JSON.parse(error.message);
+      if (errObj.error && errObj.error.message) {
+        cleanMsg = errObj.error.message;
+      }
+    } catch {
+      cleanMsg = error.message?.substring(0, 200) || cleanMsg;
+    }
+
+    if (cleanMsg.includes("quota") || cleanMsg.includes("429")) {
+      cleanMsg = "Google API Quota Exceeded. Please type your message or check your billing plan.";
+    }
+
     return NextResponse.json(
-      { error: `Transcription failed: ${error.message?.substring(0, 200)}` },
+      { error: `Transcription failed: ${cleanMsg}` },
       { status: 500 }
     );
   }

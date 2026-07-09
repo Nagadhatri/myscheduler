@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { CalendarDays, Users, Sparkles, ArrowRight, Shield, UserCheck, Settings } from "lucide-react";
 import ChatPanel from "@/components/chatbot/ChatPanel";
-import PastBookingLookup from "@/components/visitor/PastBookingLookup";
 
 export default function LandingPage() {
   return (
@@ -21,7 +20,6 @@ export default function LandingPage() {
           <h1 className="text-lg font-bold tracking-tight gradient-text">MyScheduler</h1>
         </div>
         <div className="flex items-center gap-3">
-          <PastBookingLookup />
           <Link href="/login" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
             Sign In
           </Link>

@@ -1358,13 +1358,7 @@ CRITICAL RULES:
           });
         }
       } catch (geminiError: any) {
-        console.warn("Gemini API failed, falling back to local engine:", geminiError);
-        if (geminiError?.status === 429 || (geminiError?.message && (geminiError.message.toLowerCase().includes("quota") || geminiError.message.includes("429")))) {
-            return NextResponse.json({
-                type: "text",
-                text: "⚠️ **Gemini API Quota Exceeded!** ⚠️\n\nI cannot give you an intelligent, ChatGPT-like response right now because the Google Gemini API key has exceeded its usage limit. \n\nPlease update the `GEMINI_API_KEY` in your `.env.local` file with a new key and restart your server (`npm run dev`) to restore my full intelligence!"
-            });
-        }
+        console.warn("Gemini API failed, falling back to local engine:", geminiError.message);
         geminiFailed = true;
       }
     } else {
