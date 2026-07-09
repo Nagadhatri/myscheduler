@@ -127,13 +127,47 @@ Generate the report in clean Markdown format with:
 
 Use professional language. Be concise but thorough.`;
 
-    // 6. Generate report with Gemini
-    const response = await genAI.models.generateContent({
-      model: GEMINI_MODEL,
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-    });
+    // 6. Generate report with Gemini or fallback to local heuristics
+    let reportContent = "";
+    try {
+      const response = await genAI.models.generateContent({
+        model: GEMINI_MODEL,
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+      });
+      reportContent = response.text?.trim() || "";
+    } catch (apiError: any) {
+      console.warn("Gemini API failed for report, using local heuristic fallback:", apiError.message);
+      
+      const acceptedCount = bookings.filter((b: any) => String(b.booking_status).includes("Accepted")).length;
+      const pendingCount = bookings.filter((b: any) => b.booking_status === "Pending").length;
 
-    const reportContent = response.text?.trim() || "Failed to generate report.";
+      reportContent = `# ${reportType.charAt(0).toUpperCase() + reportType.slice(1)} Report
+**Generated for:** ${profile?.display_name || "User"}
+**Period:** ${dateFrom} to ${dateTo}
+
+*(Note: This report was auto-generated offline via local heuristics due to AI quota limits.)*
+
+## 1. Executive Summary
+During this period, you have **${(schedules || []).length}** scheduled events and **${bookings.length}** booking requests. 
+Currently, **${acceptedCount}** bookings are accepted, and **${pendingCount}** are awaiting your review. You have recorded meeting minutes for **${minutes.length}** sessions.
+
+## 2. Meetings & Events Overview
+${(schedules || []).length === 0 ? "No schedules found in this period." : (schedules || []).map((s: any) => `- **${s.date} ${s.start_time.slice(0, 5)}**: ${s.title} (${s.status})`).join("\n")}
+
+## 3. Booking Requests
+${bookings.length === 0 ? "No bookings found." : bookings.map((b: any) => `- **${b.visitor_name}**: ${b.booking_status}`).join("\n")}
+
+## 4. Key Decisions & Minutes
+${minutes.length === 0 ? "No minutes recorded." : minutes.map((m: any) => {
+  const schedule = (schedules || []).find((s: any) => s.id === m.schedule_id);
+  return `- **${schedule?.title || "Meeting"}**: ${m.content}`;
+}).join("\n")}
+`;
+    }
+
+    if (!reportContent) {
+       reportContent = "Failed to generate report.";
+    }
 
     // 7. Save to database
     const { data: savedReport, error: saveError } = await supabase
@@ -155,6 +189,15 @@ Use professional language. Be concise but thorough.`;
     return NextResponse.json({ report: savedReport });
   } catch (error: any) {
     console.error("Report generation error:", error);
-    return NextResponse.json({ error: error.message || "Failed to generate report" }, { status: 500 });
+    let cleanMsg = "Failed to generate report";
+    try {
+      const errObj = JSON.parse(error.message);
+      if (errObj.error && errObj.error.message) {
+        cleanMsg = errObj.error.message;
+      }
+    } catch {
+      cleanMsg = error.message?.substring(0, 200) || cleanMsg;
+    }
+    return NextResponse.json({ error: cleanMsg }, { status: 500 });
   }
 }
