@@ -432,7 +432,7 @@ function buildVisitorResponse(intent: Intent, text: string, history: any[]): any
       }
       return {
         type: "text",
-        text: `I can look up your bookings! 📋\n\nPlease tell me the **email address** you used when booking, and I'll check the status for you.\n\nYou can also use the **Track My Bookings** panel on the left side of this page! 🔍`,
+        text: `I can look up your bookings! 📋\n\nPlease tell me the **email address** you used when booking, and I'll check the status for you.\n\nYou can also use the **Track My Bookings** button on the main visitor page! 🔍`,
       };
     }
 
@@ -1008,7 +1008,7 @@ function formatFunctionResult(name: string, response: any): string {
       return response.success ? "🗑️ Slot deleted successfully!" : `⚠️ Failed to delete: ${response.error}`;
 
     case "bookAppointment":
-      return response.success ? "🎉 Your booking request has been submitted! The owner will review it and you'll be notified. Check back using 'Track My Bookings'!" : `⚠️ Booking failed: ${response.error}`;
+      return response.success ? "🎉 Your booking request has been submitted! The owner will review it and you'll be notified. Check back using the 'Track My Bookings' button on the main visitor page!" : `⚠️ Booking failed: ${response.error}`;
 
     case "sendConnectionRequest":
       return response.success ? "🤝 Connection request sent! They'll see it in their Incoming Requests." : `⚠️ Failed: ${response.error}`;

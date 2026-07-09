@@ -44,6 +44,11 @@ function ChatPanelInner({
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
+  const [ws, setWs] = useState<WebSocket | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const processorRef = useRef<ScriptProcessorNode | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+
   
   const scrollRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
@@ -51,7 +56,6 @@ function ChatPanelInner({
   
   const { saveChat, loadChat } = useChatHistory(context);
   
-  // Load chat history when selected date changes or on mount
   useEffect(() => {
     if (selectedChatDate) {
       setMessages(loadChat(selectedChatDate));
@@ -60,6 +64,36 @@ function ChatPanelInner({
       const today = format(new Date(), "yyyy-MM-dd");
       setMessages(loadChat(today));
     }
+
+    // Connect to Local Vosk + Rasa WebSocket server
+    const socket = new WebSocket("ws://localhost:2700");
+    
+    socket.onopen = () => {
+      console.log("Connected to local AI voice server");
+    };
+
+    socket.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === "stt") {
+          // Received parsed text from speech
+          setMessages(prev => [...prev, { role: "user", text: data.text }]);
+        } else if (data.type === "bot") {
+          setMessages(prev => [...prev, { role: "model", text: data.text }]);
+          // Note: pyttsx3 on backend speaks it automatically
+        } else if (data.type === "partial") {
+          // Could show a typing indicator or partial text
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    setWs(socket);
+
+    return () => {
+      socket.close();
+    };
   }, [selectedChatDate, context]);
 
   // Save chat history whenever messages change (only if there are messages)
@@ -70,29 +104,8 @@ function ChatPanelInner({
   }, [messages, selectedChatDate]);
 
   const speakText = (text: string) => {
-    if (!voiceEnabled || !window.speechSynthesis) return;
-
-    // Remove markdown symbols and emojis before speaking
-    const cleanText = text.replace(/\*\*|\[|\]|\(.*?\)|⚠️|✅|❌|🔄|⏳|📅|📋|👥|🔍|👤|🏠|🔐|📝|✨|😊|👋|⏰|🤝|🗑️|🎉|📧/g, "").trim();
-    if (!cleanText) return;
-
-    window.speechSynthesis.cancel(); // cancel any ongoing speech
-    const utterance = new SpeechSynthesisUtterance(cleanText);
-
-    // Find a good native Indian English voice, or default English
-    const voices = window.speechSynthesis.getVoices();
-    let selectedVoice = voices.find(v => v.lang === 'en-IN' && v.name.includes('Google'));
-    if (!selectedVoice) selectedVoice = voices.find(v => v.lang === 'en-IN');
-    if (!selectedVoice) selectedVoice = voices.find(v => v.lang.startsWith('en-') && v.name.includes('Google'));
-    if (selectedVoice) {
-      utterance.voice = selectedVoice;
-    }
-
-    utterance.onstart = () => setIsSpeaking(true);
-    utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = () => setIsSpeaking(false);
-
-    window.speechSynthesis.speak(utterance);
+    // Disabled browser TTS. We are using local pyttsx3 via vosk_server.py
+    // to provide a better, native-sounding voice.
   };
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -110,47 +123,38 @@ function ChatPanelInner({
 
   const handleRecordingStart = async () => {
     if (isListening) return;
-
-    // Cancel any ongoing bot speech when user starts talking
-    window.speechSynthesis.cancel();
-    setIsSpeaking(false);
-
+    setIsListening(true);
+    
     try {
-      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-      if (!SpeechRecognition) {
-        toast.error("Voice recognition is not supported in this browser. Please type your message.");
-        return;
-      }
-
-      const recognition = new SpeechRecognition();
-      recognitionRef.current = recognition;
-      recognition.lang = 'en-IN';
-      recognition.interimResults = false;
-      recognition.maxAlternatives = 1;
-
-      recognition.onstart = () => {
-        setIsListening(true);
-      };
-
-      recognition.onresult = (event: any) => {
-        const transcript = event.results[0][0].transcript;
-        if (transcript && transcript.trim()) {
-           sendMessage(transcript.trim());
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      
+      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+      const context = new AudioContext({ sampleRate: 16000 });
+      audioContextRef.current = context;
+      
+      const source = context.createMediaStreamSource(stream);
+      const processor = context.createScriptProcessor(4096, 1, 1);
+      processorRef.current = processor;
+      
+      source.connect(processor);
+      processor.connect(context.destination);
+      
+      processor.onaudioprocess = (e) => {
+        if (!ws || ws.readyState !== WebSocket.OPEN) return;
+        
+        const inputData = e.inputBuffer.getChannelData(0);
+        const buffer = new ArrayBuffer(inputData.length * 2);
+        const view = new DataView(buffer);
+        
+        for (let i = 0; i < inputData.length; i++) {
+          let s = Math.max(-1, Math.min(1, inputData[i]));
+          view.setInt16(i * 2, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
         }
+        
+        ws.send(buffer);
       };
-
-      recognition.onerror = (event: any) => {
-        if (event.error !== 'no-speech' && event.error !== 'aborted') {
-          toast.error(`Microphone error: ${event.error}`);
-        }
-        setIsListening(false);
-      };
-
-      recognition.onend = () => {
-        setIsListening(false);
-      };
-
-      recognition.start();
+      
     } catch (err: any) {
       toast.error("Microphone access denied or error occurred.");
       setIsListening(false);
@@ -158,13 +162,12 @@ function ChatPanelInner({
   };
 
   const handleRecordingStop = () => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
-      mediaRecorderRef.current.stop();
+    if (processorRef.current && audioContextRef.current) {
+      processorRef.current.disconnect();
+      audioContextRef.current.close();
     }
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.stop();
-      } catch (e) {}
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
     }
     setIsListening(false);
   };
@@ -275,74 +278,10 @@ function ChatPanelInner({
       setInput("");
     }
 
-    setLoading(true);
-
-    try {
-      const lastMsg = historyToPass[historyToPass.length - 1];
-      const isFunction = lastMsg?.role === "function";
-      
-      const payload: any = {
-        history: isFunction ? historyToPass : historyToPass.slice(0, -1),
-        message: isFunction ? JSON.stringify(lastMsg.response || {}) : (lastMsg?.text || ""),
-        context,
-      };
-
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await res.json();
-
-      if (data.error) {
-        setMessages((prev) => [
-          ...prev,
-          { role: "model", text: `⚠️ ${data.error}` },
-        ]);
-        setLoading(false);
-        return;
-      }
-
-      if (data.type === "text") {
-        setMessages((prev) => [...prev, { role: "model", text: data.text }]);
-        speakText(data.text);
-      } else if (data.type === "function_call") {
-        const call = data.functionCall;
-        setMessages((prev) => [
-          ...prev,
-          { role: "model", functionCall: call },
-        ]);
-
-        // Auto-execute read operations
-        if (
-          [
-            "getTodaySchedule",
-            "getAvailableSlots",
-            "queryBookings",
-            "checkBookingStatus",
-            "searchPeople",
-            "getConnections",
-            "getCurrentUser",
-            "getPageOwner",
-            "navigateToPage",
-            "generateReport",
-            "getMeetingMinutes",
-          ].includes(call.name)
-        ) {
-          await handleFunctionExecution(call.name, call.args, [
-            ...historyToPass,
-            { role: "model", functionCall: call },
-          ]);
-        } else {
-          // Write ops need confirmation
-          setPendingCall(call);
-        }
-      }
-    } catch (err: any) {
-      toast.error("Chat error: " + err.message);
-    } finally {
-      setLoading(false);
+    if (ws && ws.readyState === WebSocket.OPEN && newInput.trim()) {
+       ws.send(JSON.stringify({ text: newInput.trim() }));
+    } else if (newInput.trim()) {
+       toast.error("Offline bot is not connected. Make sure you are running start_bot.ps1");
     }
   };
 

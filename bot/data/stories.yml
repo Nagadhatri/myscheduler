@@ -1,0 +1,34 @@
+version: "3.1"
+
+stories:
+- story: happy path
+  steps:
+  - intent: greet
+  - action: utter_greet
+  - intent: schedule_meeting
+  - action: utter_ask_meeting_details
+  - intent: affirm
+  - action: utter_meeting_scheduled
+  - intent: goodbye
+  - action: utter_goodbye
+
+- story: cancel path
+  steps:
+  - intent: greet
+  - action: utter_greet
+  - intent: cancel_meeting
+  - action: utter_ask_cancel_details
+  - intent: affirm
+  - action: utter_meeting_cancelled
+
+- story: check schedule path
+  steps:
+  - intent: greet
+  - action: utter_greet
+  - intent: check_schedule
+  - action: utter_check_schedule
+
+- story: track booking path
+  steps:
+  - intent: track_booking
+  - action: utter_track_booking

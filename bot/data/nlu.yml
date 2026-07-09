@@ -1,0 +1,95 @@
+version: "3.1"
+
+nlu:
+- intent: greet
+  examples: |
+    - hey
+    - hello
+    - hi
+    - hello there
+    - good morning
+    - good evening
+    - hey bot
+    - hi bot
+
+- intent: goodbye
+  examples: |
+    - cu
+    - good by
+    - cee you later
+    - good night
+    - bye
+    - goodbye
+    - have a nice day
+    - see you around
+    - bye bye
+    - see you later
+
+- intent: affirm
+  examples: |
+    - yes
+    - y
+    - indeed
+    - of course
+    - that sounds good
+    - correct
+    - yes please
+    - absolutely
+    - yeah
+
+- intent: deny
+  examples: |
+    - no
+    - n
+    - never
+    - I don't think so
+    - don't like that
+    - no way
+    - not really
+    - nope
+
+- intent: bot_challenge
+  examples: |
+    - are you a bot?
+    - are you a human?
+    - am I talking to a bot?
+    - am I talking to a human?
+    - who are you
+
+- intent: schedule_meeting
+  examples: |
+    - book a meeting
+    - schedule a meeting
+    - i want to meet someone
+    - setup a call
+    - add an appointment
+    - I need to schedule an appointment
+    - book a slot
+    - create a new event
+
+- intent: cancel_meeting
+  examples: |
+    - cancel my meeting
+    - I want to cancel an appointment
+    - remove a booking
+    - cancel this slot
+    - delete event
+    - cancel a call
+    - drop the meeting
+
+- intent: check_schedule
+  examples: |
+    - what is on my schedule today?
+    - show me my meetings
+    - do I have any appointments?
+    - what is my schedule?
+    - read my schedule
+    - check my meetings for today
+
+- intent: track_booking
+  examples: |
+    - where is my booking
+    - track my booking
+    - booking status
+    - what is the status of my appointment
+    - show me my booking status
