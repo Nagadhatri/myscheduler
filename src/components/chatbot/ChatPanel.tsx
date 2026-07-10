@@ -123,51 +123,40 @@ function ChatPanelInner({
 
   const handleRecordingStart = async () => {
     if (isListening) return;
-    setIsListening(true);
     
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = stream;
-      
-      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-      const context = new AudioContext({ sampleRate: 16000 });
-      audioContextRef.current = context;
-      
-      const source = context.createMediaStreamSource(stream);
-      const processor = context.createScriptProcessor(4096, 1, 1);
-      processorRef.current = processor;
-      
-      source.connect(processor);
-      processor.connect(context.destination);
-      
-      processor.onaudioprocess = (e) => {
-        if (!ws || ws.readyState !== WebSocket.OPEN) return;
-        
-        const inputData = e.inputBuffer.getChannelData(0);
-        const buffer = new ArrayBuffer(inputData.length * 2);
-        const view = new DataView(buffer);
-        
-        for (let i = 0; i < inputData.length; i++) {
-          let s = Math.max(-1, Math.min(1, inputData[i]));
-          view.setInt16(i * 2, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
-        }
-        
-        ws.send(buffer);
-      };
-      
-    } catch (err: any) {
-      toast.error("Microphone access denied or error occurred.");
-      setIsListening(false);
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      toast.error("Speech recognition is not supported in your browser. Please use Chrome/Edge.");
+      return;
     }
+    
+    setIsListening(true);
+    const recognition = new SpeechRecognition();
+    recognition.lang = "en-US";
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      sendMessage(transcript);
+    };
+    
+    recognition.onerror = (event: any) => {
+      console.error("Speech recognition error", event.error);
+      setIsListening(false);
+    };
+    
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+    
+    recognitionRef.current = recognition;
+    recognition.start();
   };
 
   const handleRecordingStop = () => {
-    if (processorRef.current && audioContextRef.current) {
-      processorRef.current.disconnect();
-      audioContextRef.current.close();
-    }
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
     }
     setIsListening(false);
   };
