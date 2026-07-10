@@ -138,11 +138,26 @@ function ChatPanelInner({
     
     recognition.onresult = (event: any) => {
       const transcript = event.results[0][0].transcript;
-      sendMessage(transcript);
+      if (transcript && transcript.trim()) {
+        // Set as input text so user sees what they said, then auto-submit
+        setInput(transcript);
+        // Use a small delay to let React update the input state before submitting
+        setTimeout(() => {
+          setIsListening(false);
+          // Directly call sendMessage with the transcript
+          sendMessage(transcript);
+          setInput("");
+        }, 100);
+      }
     };
     
     recognition.onerror = (event: any) => {
       console.error("Speech recognition error", event.error);
+      if (event.error === "no-speech") {
+        toast.error("No speech detected. Please try again.");
+      } else if (event.error === "not-allowed") {
+        toast.error("Microphone access denied. Please allow microphone in your browser.");
+      }
       setIsListening(false);
     };
     
