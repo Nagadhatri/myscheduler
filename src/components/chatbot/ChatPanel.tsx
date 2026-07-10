@@ -48,6 +48,7 @@ function ChatPanelInner({
   const audioContextRef = useRef<AudioContext | null>(null);
   const processorRef = useRef<ScriptProcessorNode | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const voiceConversationRef = useRef(false);
 
   
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -56,44 +57,24 @@ function ChatPanelInner({
   
   const { saveChat, loadChat } = useChatHistory(context);
   
+  // Load browser TTS voices
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      window.speechSynthesis.getVoices();
+      window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+    }
+    return () => {
+      window.speechSynthesis?.cancel();
+    };
+  }, []);
+
   useEffect(() => {
     if (selectedChatDate) {
       setMessages(loadChat(selectedChatDate));
     } else {
-      // Default to today if not provided, or clear if forced
       const today = format(new Date(), "yyyy-MM-dd");
       setMessages(loadChat(today));
     }
-
-    // Connect to Local Vosk + Rasa WebSocket server
-    const socket = new WebSocket("ws://localhost:2700");
-    
-    socket.onopen = () => {
-      console.log("Connected to local AI voice server");
-    };
-
-    socket.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (data.type === "stt") {
-          // Received parsed text from speech
-          setMessages(prev => [...prev, { role: "user", text: data.text }]);
-        } else if (data.type === "bot") {
-          setMessages(prev => [...prev, { role: "model", text: data.text }]);
-          // Note: pyttsx3 on backend speaks it automatically
-        } else if (data.type === "partial") {
-          // Could show a typing indicator or partial text
-        }
-      } catch (err) {
-        console.error(err);
-      }
-    };
-
-    setWs(socket);
-
-    return () => {
-      socket.close();
-    };
   }, [selectedChatDate, context]);
 
   // Save chat history whenever messages change (only if there are messages)
@@ -104,8 +85,51 @@ function ChatPanelInner({
   }, [messages, selectedChatDate]);
 
   const speakText = (text: string) => {
-    // Disabled browser TTS. We are using local pyttsx3 via vosk_server.py
-    // to provide a better, native-sounding voice.
+    if (!voiceEnabled || typeof window === 'undefined' || !window.speechSynthesis) return;
+
+    // Cancel any ongoing speech
+    window.speechSynthesis.cancel();
+
+    // Clean text for natural speech output
+    const cleanText = text
+      .replace(/\*\*([^*]+)\*\*/g, '$1')
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+      .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE00}-\u{FE0F}\u{1F900}-\u{1F9FF}•]/gu, '')
+      .replace(/#+\s/g, '')
+      .replace(/\n+/g, '. ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    if (!cleanText || cleanText.length < 2) return;
+
+    const utterance = new SpeechSynthesisUtterance(cleanText);
+
+    // Pick the best available English voice
+    const voices = window.speechSynthesis.getVoices();
+    const preferred =
+      voices.find(v => v.name.includes('Google US English')) ||
+      voices.find(v => v.name.includes('Google') && v.lang.startsWith('en')) ||
+      voices.find(v => v.name.includes('Microsoft Zira')) ||
+      voices.find(v => v.name.includes('Microsoft') && v.lang.startsWith('en')) ||
+      voices.find(v => v.lang.startsWith('en-'));
+    if (preferred) utterance.voice = preferred;
+
+    utterance.rate = 1.05;
+    utterance.pitch = 1.0;
+
+    utterance.onstart = () => setIsSpeaking(true);
+    utterance.onend = () => {
+      setIsSpeaking(false);
+      // Continuous conversation: auto-listen after bot finishes speaking
+      if (voiceConversationRef.current && voiceEnabled) {
+        setTimeout(() => {
+          if (voiceConversationRef.current) handleRecordingStart();
+        }, 400);
+      }
+    };
+    utterance.onerror = () => setIsSpeaking(false);
+
+    window.speechSynthesis.speak(utterance);
   };
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -123,48 +147,60 @@ function ChatPanelInner({
 
   const handleRecordingStart = async () => {
     if (isListening) return;
-    
+
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      toast.error("Speech recognition is not supported in your browser. Please use Chrome/Edge.");
+      toast.error("Speech recognition is not supported. Use Chrome or Edge.");
       return;
     }
-    
+
+    // Barge-in: stop bot mid-speech if it's talking
+    window.speechSynthesis?.cancel();
+    setIsSpeaking(false);
+
+    // Mark that user is in voice conversation mode
+    voiceConversationRef.current = true;
+
     setIsListening(true);
     const recognition = new SpeechRecognition();
     recognition.lang = "en-US";
-    recognition.interimResults = false;
+    recognition.interimResults = true;
     recognition.maxAlternatives = 1;
-    
+    recognition.continuous = false;
+
     recognition.onresult = (event: any) => {
-      const transcript = event.results[0][0].transcript;
-      if (transcript && transcript.trim()) {
-        // Set as input text so user sees what they said, then auto-submit
-        setInput(transcript);
-        // Use a small delay to let React update the input state before submitting
-        setTimeout(() => {
-          setIsListening(false);
-          // Directly call sendMessage with the transcript
-          sendMessage(transcript);
+      const result = event.results[event.results.length - 1];
+      const transcript = result[0].transcript;
+
+      if (result.isFinal) {
+        // Final result — send to AI
+        if (transcript && transcript.trim()) {
           setInput("");
-        }, 100);
+          setIsListening(false);
+          sendMessage(transcript);
+        }
+      } else {
+        // Interim result — show live in input field
+        setInput(transcript);
       }
     };
-    
+
     recognition.onerror = (event: any) => {
-      console.error("Speech recognition error", event.error);
+      console.error("Speech error:", event.error);
       if (event.error === "no-speech") {
-        toast.error("No speech detected. Please try again.");
+        toast.error("Didn't catch that. Try again.");
       } else if (event.error === "not-allowed") {
-        toast.error("Microphone access denied. Please allow microphone in your browser.");
+        toast.error("Mic access denied. Allow it in browser settings.");
+      } else if (event.error !== "aborted") {
+        toast.error("Voice error. Please try again.");
       }
       setIsListening(false);
     };
-    
+
     recognition.onend = () => {
       setIsListening(false);
     };
-    
+
     recognitionRef.current = recognition;
     recognition.start();
   };
@@ -173,7 +209,13 @@ function ChatPanelInner({
     if (recognitionRef.current) {
       recognitionRef.current.stop();
     }
+    // Barge-in: also stop bot speech
+    window.speechSynthesis?.cancel();
+    setIsSpeaking(false);
+    // Exit continuous voice conversation mode
+    voiceConversationRef.current = false;
     setIsListening(false);
+    setInput("");
   };
 
   const renderFormattedText = (text: string) => {
@@ -664,7 +706,9 @@ function ChatPanelInner({
               <button
                 className="w-7 h-7 rounded-lg hover:bg-white/10 flex items-center justify-center transition-colors cursor-pointer"
                 onClick={() => {
-                  if (voiceEnabled) window.speechSynthesis?.cancel();
+                  window.speechSynthesis?.cancel();
+                  setIsSpeaking(false);
+                  voiceConversationRef.current = false;
                   setVoiceEnabled(!voiceEnabled);
                 }}
                 title={voiceEnabled ? "Mute Bot Voice" : "Unmute Bot Voice"}
