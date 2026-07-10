@@ -267,10 +267,78 @@ function ChatPanelInner({
       setInput("");
     }
 
-    if (ws && ws.readyState === WebSocket.OPEN && newInput.trim()) {
-       ws.send(JSON.stringify({ text: newInput.trim() }));
-    } else if (newInput.trim()) {
-       toast.error("Offline bot is not connected. Make sure you are running start_bot.ps1");
+    setLoading(true);
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          history: historyToPass,
+          message: newInput || undefined,
+          context,
+        }),
+      });
+      const data = await res.json();
+
+      if (data.error) {
+        setMessages((prev) => [
+          ...prev,
+          { role: "model", text: `⚠️ ${data.error}` },
+        ]);
+      } else if (data.type === "function_call") {
+        const fc = data.functionCall;
+        // Auto-execute safe read-only functions immediately
+        const safeActions = [
+          "getTodaySchedule",
+          "getAvailableSlots",
+          "queryBookings",
+          "checkBookingStatus",
+          "searchPeople",
+          "getCurrentUser",
+          "getPageOwner",
+          "getConnections",
+          "navigateToPage",
+          "generateReport",
+          "getMeetingMinutes",
+        ];
+        if (safeActions.includes(fc.name)) {
+          const modelMsg: Message = {
+            role: "model",
+            text: "",
+            functionCall: fc,
+          };
+          const updatedHistory = [...historyToPass, modelMsg];
+          setMessages(updatedHistory);
+          await handleFunctionExecution(fc.name, fc.args, updatedHistory);
+        } else {
+          // Destructive action — ask user to confirm
+          const modelMsg: Message = {
+            role: "model",
+            text: "",
+            functionCall: fc,
+          };
+          setMessages((prev) => [...prev, modelMsg]);
+          setPendingCall(fc);
+        }
+      } else {
+        // Plain text response
+        const botMsg: Message = { role: "model", text: data.text || "" };
+        setMessages((prev) => [...prev, botMsg]);
+        if (voiceEnabled && data.text) {
+          speakText(data.text);
+        }
+      }
+    } catch (err: any) {
+      console.error("Chat error:", err);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "model",
+          text: "Sorry, something went wrong. Please try again!",
+        },
+      ]);
+    } finally {
+      setLoading(false);
     }
   };
 
