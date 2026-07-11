@@ -358,7 +358,7 @@ function buildOwnerResponse(intent: Intent, text: string, history: any[]): any {
     default:
       return {
         type: "text",
-        text: `Hmm, I'm not exactly sure what you mean. Could you explain what you want to do with your schedule? I'm here to help!`,
+        text: `(Offline Mode) I'm currently running in basic offline mode. I can help you **manage your calendar**, **check your schedule**, or **search for people**. Try saying something like "show my schedule" or "find Alex".`,
       };
   }
 }
@@ -533,7 +533,7 @@ function buildVisitorResponse(intent: Intent, text: string, history: any[]): any
     default:
       return {
         type: "text",
-        text: `(Offline Mode) It seems your Google AI quota is exceeded so I am running in basic offline mode. Are you trying to **book a slot**, **check a schedule**, or **find someone**? (Try saying something like "book with Ritu")`,
+        text: `(Offline Mode) I'm currently running in basic offline mode. I can help you **book a slot**, **check a schedule**, or **find someone**. Try saying something like "book with Ritu" or "find Alex".`,
       };
   }
 }
