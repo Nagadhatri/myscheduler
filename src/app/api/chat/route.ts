@@ -1036,7 +1036,7 @@ const OWNER_TOOLS = [
     parameters: {
       type: "object" as const,
       properties: {
-        date: { type: "string" as const, description: "Optional date in YYYY-MM-DD format. Defaults to today if not provided." },
+        date: { type: "string" as const, description: "Optional date in YYYY-MM-DD format. Defaults to today if not provided. You MUST silently convert natural words like 'tomorrow' or 'next monday' into this format yourself." },
       },
     },
   },
@@ -1057,7 +1057,7 @@ const OWNER_TOOLS = [
       type: "object" as const,
       properties: {
         title: { type: "string" as const },
-        date: { type: "string" as const, description: "Date in YYYY-MM-DD format" },
+        date: { type: "string" as const, description: "Date in YYYY-MM-DD format. You MUST silently convert natural words like 'tomorrow' into this format yourself." },
         start_time: { type: "string" as const, description: "Start time in HH:mm format" },
         end_time: { type: "string" as const, description: "End time in HH:mm format" },
         category: { type: "string" as const, enum: ["Meeting", "Presentation", "Event Participation", "Learning", "Other"] },
@@ -1073,7 +1073,7 @@ const OWNER_TOOLS = [
       type: "object" as const,
       properties: {
         slot_id: { type: "string" as const, description: "The ID of the schedule to reschedule" },
-        new_date: { type: "string" as const, description: "New date in YYYY-MM-DD format" },
+        new_date: { type: "string" as const, description: "New date in YYYY-MM-DD format. You MUST silently convert natural words like 'tomorrow' into this format yourself." },
         new_start_time: { type: "string" as const, description: "New start time in HH:mm format" },
         new_end_time: { type: "string" as const, description: "New end time in HH:mm format" },
         reason: { type: "string" as const, description: "Optional reason for rescheduling" },
@@ -1162,7 +1162,7 @@ const VISITOR_TOOLS = [
     parameters: {
       type: "object" as const,
       properties: {
-        date: { type: "string" as const, description: "Date in YYYY-MM-DD format" },
+        date: { type: "string" as const, description: "Date in YYYY-MM-DD format. You MUST silently convert natural words like 'tomorrow' or 'next monday' into this format yourself." },
       },
       required: ["date"],
     },
@@ -1175,7 +1175,7 @@ const VISITOR_TOOLS = [
       properties: {
         name: { type: "string" as const, description: "Visitor's full name" },
         email: { type: "string" as const, description: "Visitor's email address" },
-        date: { type: "string" as const, description: "Date in YYYY-MM-DD format" },
+        date: { type: "string" as const, description: "Date in YYYY-MM-DD format. You MUST silently convert natural words like 'tomorrow' or 'next monday' into this format yourself." },
         start_time: { type: "string" as const, description: "Start time in HH:mm:ss format (e.g., 10:00:00)" },
         end_time: { type: "string" as const, description: "End time in HH:mm:ss format (e.g., 11:00:00)" },
         description: { type: "string" as const, description: "Brief reason for the meeting (a few words is fine, NO minimum word count)" },
@@ -1351,7 +1351,7 @@ ERROR HANDLING:
           return { role: "user", parts: [{ text: msg.text || "" }] };
         });
 
-        if (message) {
+        if (message && (!history || history.length === 0 || history[history.length - 1].text !== message)) {
           contents.push({ role: "user", parts: [{ text: message }] });
         }
 
@@ -1387,10 +1387,14 @@ ERROR HANDLING:
               functionCall: { name: call.name, args: call.args },
             });
           }
-          return NextResponse.json({
-            type: "text",
-            text: response.text || "I'm here to help!"
-          });
+          
+          if (response.text && response.text.trim().length > 0) {
+            return NextResponse.json({
+              type: "text",
+              text: response.text
+            });
+          }
+          // If empty text and no function call, fall through to local engine
         }
       } catch (geminiError: any) {
         console.warn("Gemini API failed, falling back to local engine:", geminiError.message);
@@ -1413,16 +1417,16 @@ ERROR HANDLING:
     }
 
     // Try follow-up detection first
-    let response = detectFollowUp(message || "", history || []);
-    if (!response) {
+    let localResponse = detectFollowUp(message || "", history || []);
+    if (!localResponse) {
       // Fallback to local intent detection
       const intent = detectIntent(message || "");
-      response = context === "owner"
+      localResponse = context === "owner"
           ? buildOwnerResponse(intent, message || "", history || [])
           : buildVisitorResponse(intent, message || "", history || []);
     }
 
-    return NextResponse.json(response);
+    return NextResponse.json(localResponse);
   } catch (error: any) {
     console.error("Chat API Error:", error);
     return NextResponse.json(
