@@ -127,43 +127,13 @@ Generate the report in clean Markdown format with:
 
 Use professional language. Be concise but thorough.`;
 
-    // 6. Generate report with Gemini or fallback to local heuristics
+    // 6. Generate report with Gemini
     let reportContent = "";
-    try {
-      const response = await genAI.models.generateContent({
-        model: GEMINI_MODEL,
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-      });
-      reportContent = response.text?.trim() || "";
-    } catch (apiError: any) {
-      console.warn("Gemini API failed for report, using local heuristic fallback:", apiError.message);
-      
-      const acceptedCount = bookings.filter((b: any) => String(b.booking_status).includes("Accepted")).length;
-      const pendingCount = bookings.filter((b: any) => b.booking_status === "Pending").length;
-
-      reportContent = `# ${reportType.charAt(0).toUpperCase() + reportType.slice(1)} Report
-**Generated for:** ${profile?.display_name || "User"}
-**Period:** ${dateFrom} to ${dateTo}
-
-*(Note: This report was auto-generated offline via local heuristics due to AI quota limits.)*
-
-## 1. Executive Summary
-During this period, you have **${(schedules || []).length}** scheduled events and **${bookings.length}** booking requests. 
-Currently, **${acceptedCount}** bookings are accepted, and **${pendingCount}** are awaiting your review. You have recorded meeting minutes for **${minutes.length}** sessions.
-
-## 2. Meetings & Events Overview
-${(schedules || []).length === 0 ? "No schedules found in this period." : (schedules || []).map((s: any) => `- **${s.date} ${s.start_time.slice(0, 5)}**: ${s.title} (${s.status})`).join("\n")}
-
-## 3. Booking Requests
-${bookings.length === 0 ? "No bookings found." : bookings.map((b: any) => `- **${b.visitor_name}**: ${b.booking_status}`).join("\n")}
-
-## 4. Key Decisions & Minutes
-${minutes.length === 0 ? "No minutes recorded." : minutes.map((m: any) => {
-  const schedule = (schedules || []).find((s: any) => s.id === m.schedule_id);
-  return `- **${schedule?.title || "Meeting"}**: ${m.content}`;
-}).join("\n")}
-`;
-    }
+    const response = await genAI.models.generateContent({
+      model: GEMINI_MODEL,
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+    });
+    reportContent = response.text?.trim() || "";
 
     if (!reportContent) {
        reportContent = "Failed to generate report.";
