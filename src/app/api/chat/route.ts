@@ -384,7 +384,7 @@ ERROR HANDLING:
           if (call) {
             return NextResponse.json({
               type: "function_call",
-              functionCall: { name: call.name, args: call.args },
+              functionCall: call,
             });
           }
           
