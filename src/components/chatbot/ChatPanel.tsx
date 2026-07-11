@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { format } from "date-fns";
-import { MessageCircle, X, Send, Bot, Sparkles, Trash2, Mic, MicOff, Volume2, VolumeX, Globe, User } from "lucide-react";
+import { MessageCircle, X, Send, Bot, Sparkles, Trash2, Mic, MicOff, Volume2, VolumeX, Globe, User, Settings } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { ChatErrorBoundary } from "./ChatErrorBoundary";
@@ -51,6 +51,11 @@ function ChatPanelInner({
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
+  
+  const [showSettings, setShowSettings] = useState(false);
+  const [geminiApiKey, setGeminiApiKey] = useState("");
+  const [geminiModel, setGeminiModel] = useState("");
+
   const [ws, setWs] = useState<WebSocket | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const processorRef = useRef<ScriptProcessorNode | null>(null);
@@ -81,6 +86,12 @@ function ChatPanelInner({
     } else {
       const today = format(new Date(), "yyyy-MM-dd");
       setMessages(loadChat(today));
+    }
+
+    // Load custom API settings
+    if (typeof window !== "undefined") {
+      setGeminiApiKey(localStorage.getItem('gemini_api_key') || '');
+      setGeminiModel(localStorage.getItem('gemini_model') || 'gemini-2.5-flash');
     }
   }, [selectedChatDate, context]);
 
@@ -254,9 +265,13 @@ function ChatPanelInner({
 
     setLoading(true);
     try {
+      const reqHeaders: Record<string, string> = { "Content-Type": "application/json" };
+      if (geminiApiKey) reqHeaders["x-gemini-api-key"] = geminiApiKey;
+      if (geminiModel) reqHeaders["x-gemini-model"] = geminiModel;
+
       const res = await fetch("/api/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: reqHeaders,
         body: JSON.stringify({
           history: historyToPass,
           message: newInput || undefined,
@@ -542,9 +557,13 @@ function ChatPanelInner({
         if (error) throw error;
         responseObj = { success: true, message: `Password reset link has been sent to ${args.email}.` };
       } else if (name === "generateReport") {
+        const reqHeaders: Record<string, string> = { "Content-Type": "application/json" };
+        if (geminiApiKey) reqHeaders["x-gemini-api-key"] = geminiApiKey;
+        if (geminiModel) reqHeaders["x-gemini-model"] = geminiModel;
+
         const res = await fetch("/api/reports", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: reqHeaders,
           body: JSON.stringify({
             reportType: args.reportType,
             dateFrom: args.dateFrom,
@@ -647,6 +666,13 @@ function ChatPanelInner({
               </button>
               <button
                 className="w-7 h-7 rounded-lg hover:bg-white/10 flex items-center justify-center transition-colors cursor-pointer"
+                onClick={() => setShowSettings(true)}
+                title="API Settings"
+              >
+                <Settings className="w-4 h-4 text-white" />
+              </button>
+              <button
+                className="w-7 h-7 rounded-lg hover:bg-white/10 flex items-center justify-center transition-colors cursor-pointer"
                 onClick={clearChat}
                 title="Clear chat"
               >
@@ -663,7 +689,53 @@ function ChatPanelInner({
             </div>
           </div>
 
-          {/* Messages */}
+          {showSettings && (
+            <div className="absolute inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+              <div className="bg-card w-full max-w-sm rounded-xl shadow-2xl border border-white/10 overflow-hidden flex flex-col">
+                <div className="px-4 py-3 border-b border-white/5 flex justify-between items-center bg-white/5">
+                  <h3 className="font-semibold text-sm">AI Engine Settings</h3>
+                  <button onClick={() => setShowSettings(false)} className="text-muted-foreground hover:text-white">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="p-4 space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-muted-foreground">Gemini API Key</label>
+                    <Input
+                      type="password"
+                      placeholder="AI Studio API Key"
+                      value={geminiApiKey}
+                      onChange={(e) => setGeminiApiKey(e.target.value)}
+                      className="bg-background"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-muted-foreground">Gemini Model</label>
+                    <Input
+                      type="text"
+                      placeholder="e.g. gemini-2.5-flash"
+                      value={geminiModel}
+                      onChange={(e) => setGeminiModel(e.target.value)}
+                      className="bg-background"
+                    />
+                  </div>
+                  <Button 
+                    className="w-full"
+                    onClick={() => {
+                      localStorage.setItem('gemini_api_key', geminiApiKey);
+                      localStorage.setItem('gemini_model', geminiModel);
+                      setShowSettings(false);
+                      toast.success("AI Settings saved!");
+                    }}
+                  >
+                    Save Settings
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Messages Area */}
           <ScrollArea className="flex-1 min-h-0 px-4 py-3">
             {messages.length === 0 && (
               <div className="text-center py-10">

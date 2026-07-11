@@ -1,15 +1,23 @@
 import { NextResponse } from "next/server";
 import { genAI, GEMINI_MODEL } from "@/lib/gemini";
+import { GoogleGenAI } from "@google/genai";
 
 export async function POST(req: Request) {
-  if (!genAI) {
-    return NextResponse.json(
-      { error: "Gemini API key is missing. Cannot transcribe audio." },
-      { status: 500 }
-    );
-  }
-
   try {
+    const customApiKey = req.headers.get("x-gemini-api-key");
+    const customModel = req.headers.get("x-gemini-model");
+
+    let client = genAI;
+    if (customApiKey) {
+      client = new GoogleGenAI({ apiKey: customApiKey });
+    }
+
+    if (!client) {
+      return NextResponse.json(
+        { error: "Gemini API key is missing. Cannot transcribe audio." },
+        { status: 500 }
+      );
+    }
     const body = await req.json();
     const { audioData, mimeType } = body;
     const actualMimeType = mimeType || "audio/webm";
@@ -19,11 +27,9 @@ export async function POST(req: Request) {
     }
 
     // Try models in order. gemini-2.5-flash is the confirmed working model.
-    const modelsToTry = [
-      GEMINI_MODEL,
-      "gemini-2.5-flash",
-      "gemini-2.0-flash",
-    ];
+    const modelsToTry = customModel
+      ? [customModel, GEMINI_MODEL, "gemini-2.5-flash", "gemini-2.0-flash"]
+      : [GEMINI_MODEL, "gemini-2.5-flash", "gemini-2.0-flash"];
 
     // Deduplicate
     const uniqueModels = [...new Set(modelsToTry)];
@@ -32,7 +38,7 @@ export async function POST(req: Request) {
     let lastError: any;
     for (const modelName of uniqueModels) {
       try {
-        response = await genAI.models.generateContent({
+        response = await client.models.generateContent({
           model: modelName,
           contents: [
             {

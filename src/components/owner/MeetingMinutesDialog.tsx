@@ -115,9 +115,15 @@ export default function MeetingMinutesDialog({ schedule, open, onOpenChange }: M
         const base64data = reader.result as string; 
         const base64Audio = base64data.split(',')[1];
 
+        const reqHeaders: Record<string, string> = { "Content-Type": "application/json" };
+        const geminiApiKey = localStorage.getItem('gemini_api_key');
+        const geminiModel = localStorage.getItem('gemini_model');
+        if (geminiApiKey) reqHeaders["x-gemini-api-key"] = geminiApiKey;
+        if (geminiModel) reqHeaders["x-gemini-model"] = geminiModel;
+
         const response = await fetch("/api/transcribe", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: reqHeaders,
           body: JSON.stringify({ audioData: base64Audio, mimeType: "audio/webm" }),
         });
 

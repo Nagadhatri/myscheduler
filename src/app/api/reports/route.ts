@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { genAI, GEMINI_MODEL } from "@/lib/gemini";
-
+import { GoogleGenAI } from "@google/genai";
 export async function GET(req: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -39,7 +39,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (!genAI) {
+  const customApiKey = req.headers.get("x-gemini-api-key");
+  const customModel = req.headers.get("x-gemini-model");
+
+  let client = genAI;
+  if (customApiKey) {
+    client = new GoogleGenAI({ apiKey: customApiKey });
+  }
+
+  if (!client) {
     return NextResponse.json({ error: "AI not configured" }, { status: 500 });
   }
 
@@ -129,8 +137,9 @@ Use professional language. Be concise but thorough.`;
 
     // 6. Generate report with Gemini
     let reportContent = "";
-    const response = await genAI.models.generateContent({
-      model: GEMINI_MODEL,
+    const targetModel = customModel || GEMINI_MODEL;
+    const response = await client.models.generateContent({
+      model: targetModel,
       contents: [{ role: "user", parts: [{ text: prompt }] }],
     });
     reportContent = response.text?.trim() || "";

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { genAI, GEMINI_MODEL } from "@/lib/gemini";
+import { GoogleGenAI } from "@google/genai";
 
 /* ─────────────────────────────────────────────────────────
  *  Smart Local Chatbot Engine — NO external API needed
@@ -250,12 +251,20 @@ const VISITOR_TOOLS = [
 
 export async function POST(req: Request) {
   try {
+    const customApiKey = req.headers.get("x-gemini-api-key");
+    const customModel = req.headers.get("x-gemini-model");
+    
+    let client = genAI;
+    if (customApiKey) {
+      client = new GoogleGenAI({ apiKey: customApiKey });
+    }
+
     const body = await req.json();
     const { history, message, context } = body;
 
     // Try Gemini First if available
     let geminiFailed = false;
-    if (genAI) {
+    if (client) {
       try {
         const PLATFORM_KNOWLEDGE = `# MyScheduler Platform Knowledge
 ## What is MyScheduler?
@@ -354,17 +363,15 @@ ERROR HANDLING:
           contents.push({ role: "user", parts: [{ text: message }] });
         }
 
-        const modelsToTry = [
-          GEMINI_MODEL,
-          "gemini-3.1-flash-lite",
-          "gemini-2.5-flash",
-          "gemini-2.0-flash",
-        ];
+        const modelsToTry = customModel 
+          ? [customModel, GEMINI_MODEL, "gemini-3.1-flash-lite", "gemini-2.5-flash", "gemini-2.0-flash"]
+          : [GEMINI_MODEL, "gemini-3.1-flash-lite", "gemini-2.5-flash", "gemini-2.0-flash"];
+
         const uniqueModels = [...new Set(modelsToTry)];
         let response;
         for (const modelName of uniqueModels) {
           try {
-            response = await genAI.models.generateContent({
+            response = await client.models.generateContent({
               model: modelName,
               contents,
               config: {
