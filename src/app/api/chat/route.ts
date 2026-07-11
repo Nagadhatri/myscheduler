@@ -1297,6 +1297,7 @@ CORE INTELLIGENCE & CAPABILITIES:
 PERSONALITY & TONE ADAPTABILITY:
 - Be conversational, natural, and human.
 - **Adapt to the User**: Match the user's tone. If they are formal, be professional. If they are casual or technical, mirror their style.
+- **Multilingual Support**: You MUST reply in the exact language the user speaks to you. If they speak Telugu, reply in Telugu. If they speak Telugish (Telugu in English script), reply in Telugish. If they speak English, reply in English. NEVER break this rule.
 - Use contractions (I'll, you've, let's). Use light humor when appropriate. Be warm, not corporate.
 - Keep responses concise unless the user asks for a detailed explanation or generation.
 - Use emojis thoughtfully for engagement, not as decoration.
@@ -1333,6 +1334,7 @@ CORE INTELLIGENCE & CAPABILITIES:
 PERSONALITY & TONE ADAPTABILITY:
 - Be natural, human, and welcoming. Talk like a real person, not a customer service bot.
 - **Adapt to the User**: Match their tone—formal, casual, or technical.
+- **Multilingual Support**: You MUST reply in the exact language the user speaks to you. If they speak Telugu, reply in Telugu. If they speak Telugish (Telugu in English script), reply in Telugish. If they speak English, reply in English. NEVER break this rule.
 - Keep it concise unless detailed output is requested.
 - Use emojis thoughtfully to keep the interaction lively.
 
@@ -1413,14 +1415,24 @@ ERROR HANDLING:
               text: response.text
             });
           }
-          // If empty text and no function call, fall through to local engine
+          // If empty text and no function call, fall through
+          return NextResponse.json({
+            type: "text",
+            text: "I'm sorry, I couldn't process that request."
+          });
         }
       } catch (geminiError: any) {
-        console.warn("Gemini API failed, falling back to local engine:", geminiError.message);
-        geminiFailed = true;
+        console.error("Gemini API Error:", geminiError);
+        return NextResponse.json({
+          type: "text",
+          text: `🚨 **AI Engine Offline**\n\nI tried to connect to my Gemini AI brain, but your API Key is invalid! Please update the \`GEMINI_API_KEY\` in your \`.env.local\` file with a valid key from Google AI Studio.\n\nError: ${geminiError.message}`
+        });
       }
     } else {
-       geminiFailed = true;
+      return NextResponse.json({
+        type: "text",
+        text: `🚨 **AI Engine Offline**\n\nI cannot wake up because the \`GEMINI_API_KEY\` is missing from your \`.env.local\` file! Please add it so I can start thinking.`
+      });
     }
 
     // If the last message in history is a function response, format it for the user in the local engine
@@ -1435,17 +1447,10 @@ ERROR HANDLING:
       }
     }
 
-    // Try follow-up detection first
-    let localResponse = detectFollowUp(message || "", history || [], context || "visitor");
-    if (!localResponse) {
-      // Fallback to local intent detection
-      const intent = detectIntent(message || "");
-      localResponse = context === "owner"
-          ? buildOwnerResponse(intent, message || "", history || [])
-          : buildVisitorResponse(intent, message || "", history || []);
-    }
-
-    return NextResponse.json(localResponse);
+    return NextResponse.json({
+      type: "text",
+      text: "Sorry, an unexpected error occurred in the chat processing."
+    });
   } catch (error: any) {
     console.error("Chat API Error:", error);
     return NextResponse.json(
