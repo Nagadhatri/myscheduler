@@ -662,7 +662,7 @@ function ChatPanelInner({
           </div>
 
           {/* Messages */}
-          <ScrollArea className="flex-1 px-4 py-3">
+          <ScrollArea className="flex-1 min-h-0 px-4 py-3">
             {messages.length === 0 && (
               <div className="text-center py-10">
                 <Bot className="w-10 h-10 mx-auto mb-3 text-primary/30" />
