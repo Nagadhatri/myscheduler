@@ -350,7 +350,13 @@ ERROR HANDLING:
         const contents = (history || []).map((msg: any) => {
           if (msg.role === "user") return { role: "user", parts: [{ text: msg.text || "" }] };
           if (msg.role === "model") {
-            if (msg.functionCall) return { role: "model", parts: [{ functionCall: msg.functionCall }] };
+            if (msg.functionCall) {
+              const partToReturn: any = { functionCall: msg.functionCall };
+              if (msg.thoughtSignature) {
+                partToReturn.thoughtSignature = msg.thoughtSignature;
+              }
+              return { role: "model", parts: [partToReturn] };
+            }
             return { role: "model", parts: [{ text: msg.text || "" }] };
           }
           if (msg.role === "function") {
@@ -382,9 +388,11 @@ ERROR HANDLING:
         if (response) {
           const call = response.functionCalls?.[0];
           if (call) {
+            const part = response.candidates?.[0]?.content?.parts?.find((p: any) => p.functionCall?.name === call.name);
             return NextResponse.json({
               type: "function_call",
               functionCall: call,
+              thoughtSignature: part?.thoughtSignature || part?.thought_signature,
             });
           }
           

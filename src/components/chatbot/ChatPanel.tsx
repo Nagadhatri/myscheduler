@@ -24,6 +24,7 @@ export type Message = {
   role: Role;
   text?: string;
   functionCall?: { name: string; args: any };
+  thoughtSignature?: string;
   name?: string;
   response?: any;
 };
@@ -325,6 +326,7 @@ function ChatPanelInner({
             role: "model",
             text: "",
             functionCall: fc,
+            thoughtSignature: data.thoughtSignature,
           };
           const updatedHistory = [...historyToPass, modelMsg];
           setMessages(updatedHistory);
@@ -335,6 +337,7 @@ function ChatPanelInner({
             role: "model",
             text: "",
             functionCall: fc,
+            thoughtSignature: data.thoughtSignature,
           };
           setMessages((prev) => [...prev, modelMsg]);
           setPendingCall(fc);
