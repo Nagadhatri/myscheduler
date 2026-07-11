@@ -12,22 +12,22 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://my-scheduler-ruddy.vercel.app"),
   title: "MyScheduler - Book Your Appointment",
   description: "A modern scheduling and booking platform.",
-  icons: {
-    icon: "/favicon.ico",
-  },
   openGraph: {
     title: "MyScheduler - Book Your Appointment",
     description: "A modern scheduling and booking platform.",
-    url: "https://myscheduler.com",
+    url: "/",
     siteName: "MyScheduler",
+    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "MyScheduler" }],
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
     title: "MyScheduler - Book Your Appointment",
     description: "A modern scheduling and booking platform.",
+    images: ["/og-image.png"],
   }
 };
 

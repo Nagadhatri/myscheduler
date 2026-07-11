@@ -39,9 +39,9 @@ export default function LandingPage() {
             <Sparkles className="w-3 h-3" />
             Welcome to MyScheduler
           </div>
-          <h2 className="text-3xl md:text-5xl font-bold tracking-tight leading-tight">
+          <h1 className="text-3xl md:text-5xl font-bold tracking-tight leading-tight">
             Select Your <span className="gradient-text">Portal</span>
-          </h2>
+          </h1>
           <p className="text-sm md:text-base text-muted-foreground max-w-lg mx-auto">
             Choose how you would like to proceed with MyScheduler today
           </p>

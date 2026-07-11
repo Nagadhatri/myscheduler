@@ -50,7 +50,7 @@ function ChatPanelInner({
   
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [voiceEnabled, setVoiceEnabled] = useState(true);
+  const [voiceEnabled, setVoiceEnabled] = useState(false);
   
   const [showSettings, setShowSettings] = useState(false);
   const [geminiApiKey, setGeminiApiKey] = useState("");
@@ -782,13 +782,21 @@ function ChatPanelInner({
           {/* Messages Area */}
           <ScrollArea className="flex-1 min-h-0 px-4 py-3">
             {messages.length === 0 && (
-              <div className="text-center py-10">
-                <Bot className="w-10 h-10 mx-auto mb-3 text-primary/30" />
-                <p className="text-sm text-muted-foreground">
-                  {context === "visitor"
-                    ? 'Ask me to book a slot!\nTry: "Book a meeting tomorrow at 10 AM"'
-                    : 'Ask me about your schedule!\nTry: "What\'s on my calendar today?"'}
-                </p>
+              <div className="text-center py-10 px-4 space-y-4">
+                <Bot className="w-10 h-10 mx-auto text-primary/30" />
+                {!geminiApiKey ? (
+                  <div className="bg-primary/10 border border-primary/20 rounded-xl p-4 space-y-3">
+                    <p className="text-sm font-semibold text-primary">API Key Required</p>
+                    <p className="text-xs text-muted-foreground">To use the AI Assistant, please set up your Gemini API Key first.</p>
+                    <Button size="sm" onClick={() => setShowSettings(true)} className="w-full text-xs">Set API Key</Button>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground whitespace-pre-line">
+                    {context === "visitor"
+                      ? 'Ask me to book a slot!\nTry: "Book a meeting tomorrow at 10 AM"'
+                      : 'Ask me about your schedule!\nTry: "What\'s on my calendar today?"'}
+                  </p>
+                )}
               </div>
             )}
 
@@ -989,13 +997,14 @@ function ChatPanelInner({
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder={
+                  !geminiApiKey ? "Please set your Gemini API Key first..." :
                   isListening ? "🎤 Speak now..." :
                   isTranscribing ? "Processing your speech..." :
                   context === "visitor"
                     ? "Book a slot, check status..."
                     : "Manage schedule, view bookings..."
                 }
-                disabled={loading || !!pendingCall || isListening || isTranscribing}
+                disabled={!geminiApiKey || loading || !!pendingCall || isListening || isTranscribing}
                 className="bg-white/5 border-white/5 text-sm"
               />
               <Button
@@ -1005,7 +1014,7 @@ function ChatPanelInner({
                 aria-label="Toggle microphone"
                 className={`flex-shrink-0 border-white/10 transition-all duration-200 ${isListening ? "bg-red-500/20 text-red-500 border-red-500/50 animate-pulse shadow-lg shadow-red-500/20" : isTranscribing ? "bg-primary/20 text-primary border-primary/50" : ""}`}
                 onClick={toggleListening}
-                disabled={loading || !!pendingCall || isTranscribing}
+                disabled={!geminiApiKey || loading || !!pendingCall || isTranscribing}
                 title={isListening ? "Stop listening" : "Speak (Microphone)"}
               >
                 {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
@@ -1014,7 +1023,7 @@ function ChatPanelInner({
                 type="submit"
                 size="icon"
                 aria-label="Send message"
-                disabled={!input.trim() || loading || !!pendingCall || isListening || isTranscribing}
+                disabled={!geminiApiKey || !input.trim() || loading || !!pendingCall || isListening || isTranscribing}
                 className="glow-primary flex-shrink-0"
               >
                 <Send className="w-4 h-4" />
