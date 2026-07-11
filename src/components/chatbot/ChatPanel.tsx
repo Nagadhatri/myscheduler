@@ -11,6 +11,13 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { ChatErrorBoundary } from "./ChatErrorBoundary";
 import { useChatHistory } from "./useChatHistory";
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import 'katex/dist/katex.min.css';
 
 type Role = "user" | "model" | "function";
 export type Message = {
@@ -218,86 +225,7 @@ function ChatPanelInner({
     setInput("");
   };
 
-  const renderFormattedText = (text: string) => {
-    if (!text) return null;
 
-    // Regex to match markdown links: [text](url)
-    const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
-    const parts: React.ReactNode[] = [];
-    let lastIndex = 0;
-    let match;
-
-    const renderBoldText = (subText: string, baseKey: string) => {
-      const boldRegex = /\*\*([^*]+)\*\*/g;
-      const subParts: React.ReactNode[] = [];
-      let subLastIndex = 0;
-      let subMatch;
-
-      while ((subMatch = boldRegex.exec(subText)) !== null) {
-        const plainText = subText.substring(subLastIndex, subMatch.index);
-        if (plainText) {
-          subParts.push(plainText);
-        }
-        subParts.push(
-          <strong key={`${baseKey}-bold-${subMatch.index}`} className="font-bold text-foreground">
-            {subMatch[1]}
-          </strong>
-        );
-        subLastIndex = boldRegex.lastIndex;
-      }
-
-      const remaining = subText.substring(subLastIndex);
-      if (remaining) {
-        subParts.push(remaining);
-      }
-
-      return subParts;
-    };
-
-    while ((match = linkRegex.exec(text)) !== null) {
-      const plainText = text.substring(lastIndex, match.index);
-      if (plainText) {
-        parts.push(...renderBoldText(plainText, `plain-${lastIndex}`));
-      }
-      const label = match[1];
-      const url = match[2];
-
-      const key = `link-${match.index}`;
-      if (url.startsWith("/")) {
-        parts.push(
-          <span
-            key={key}
-            onClick={() => {
-              router.push(url);
-            }}
-            className="text-primary hover:underline font-semibold cursor-pointer underline decoration-primary/50"
-          >
-            {label}
-          </span>
-        );
-      } else {
-        parts.push(
-          <a
-            key={key}
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-primary hover:underline font-semibold underline decoration-primary/50"
-          >
-            {label}
-          </a>
-        );
-      }
-      lastIndex = linkRegex.lastIndex;
-    }
-
-    const remaining = text.substring(lastIndex);
-    if (remaining) {
-      parts.push(...renderBoldText(remaining, `plain-${lastIndex}`));
-    }
-
-    return parts;
-  };
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -767,7 +695,79 @@ function ChatPanelInner({
                         : "bg-white/5 border border-white/5 rounded-bl-md"
                     }`}
                   >
-                    {renderFormattedText(msg.text || "")}
+                    <div className="prose prose-invert prose-sm max-w-none break-words">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm, remarkMath]}
+                        rehypePlugins={[rehypeKatex]}
+                      components={{
+                        code({ node, inline, className, children, ...props }: any) {
+                          const match = /language-(\w+)/.exec(className || '');
+                          return !inline && match ? (
+                            <SyntaxHighlighter
+                              style={vscDarkPlus as any}
+                              language={match[1]}
+                              PreTag="div"
+                              className="rounded-md my-2"
+                              {...props}
+                            >
+                              {String(children).replace(/\n$/, '')}
+                            </SyntaxHighlighter>
+                          ) : (
+                            <code className="bg-white/10 px-1.5 py-0.5 rounded text-[13px] font-mono" {...props}>
+                              {children}
+                            </code>
+                          );
+                        },
+                        a({ node, className, href, children, ...props }: any) {
+                          if (href?.startsWith("/")) {
+                            return (
+                              <span
+                                onClick={() => router.push(href)}
+                                className="text-primary hover:underline font-semibold cursor-pointer underline decoration-primary/50"
+                              >
+                                {children}
+                              </span>
+                            );
+                          }
+                          return (
+                            <a 
+                              href={href} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-primary hover:underline font-semibold underline decoration-primary/50"
+                              {...props}
+                            >
+                              {children}
+                            </a>
+                          );
+                        },
+                        table({ node, ...props }: any) {
+                          return (
+                            <div className="overflow-x-auto my-2">
+                              <table className="w-full text-left border-collapse border border-white/10 text-xs" {...props} />
+                            </div>
+                          );
+                        },
+                        th({ node, ...props }: any) {
+                          return <th className="border border-white/10 bg-white/5 p-2 font-semibold" {...props} />;
+                        },
+                        td({ node, ...props }: any) {
+                          return <td className="border border-white/10 p-2" {...props} />;
+                        },
+                        p({ node, ...props }: any) {
+                          return <p className="mb-2 last:mb-0" {...props} />;
+                        },
+                        ul({ node, ...props }: any) {
+                          return <ul className="list-disc pl-5 mb-2 last:mb-0 space-y-1" {...props} />;
+                        },
+                        ol({ node, ...props }: any) {
+                          return <ol className="list-decimal pl-5 mb-2 last:mb-0 space-y-1" {...props} />;
+                        }
+                      }}
+                    >
+                      {msg.text || ""}
+                      </ReactMarkdown>
+                    </div>
                   </div>
                 </div>
               );
