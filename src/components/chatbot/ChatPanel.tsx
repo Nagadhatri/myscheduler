@@ -91,7 +91,7 @@ function ChatPanelInner({
     // Load custom API settings
     if (typeof window !== "undefined") {
       setGeminiApiKey(localStorage.getItem('gemini_api_key') || '');
-      setGeminiModel(localStorage.getItem('gemini_model') || 'gemini-2.5-flash');
+      setGeminiModel(localStorage.getItem('gemini_model') || 'gemini-3.1-flash-lite');
     }
   }, [selectedChatDate, context]);
 
@@ -184,39 +184,58 @@ function ChatPanelInner({
     recognition.lang = "en-US";
     recognition.interimResults = true;
     recognition.maxAlternatives = 1;
-    recognition.continuous = false;
+    recognition.continuous = true;
+
+    let silenceTimer: NodeJS.Timeout;
 
     recognition.onresult = (event: any) => {
-      const result = event.results[event.results.length - 1];
-      const transcript = result[0].transcript;
+      let finalTranscript = "";
+      let interimTranscript = "";
 
-      if (result.isFinal) {
-        // Final result — send to AI
-        if (transcript && transcript.trim()) {
-          setInput("");
-          setIsListening(false);
-          sendMessage(transcript);
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) {
+          finalTranscript += event.results[i][0].transcript;
+        } else {
+          interimTranscript += event.results[i][0].transcript;
         }
-      } else {
-        // Interim result — show live in input field
-        setInput(transcript);
       }
+
+      // We use a function state update to append to whatever is already there if needed, 
+      // but for simplicity with continuous, we can just build the whole string.
+      // Actually, since we only want one utterance per message, let's just use the current event's full text.
+      let fullTranscript = "";
+      for (let i = 0; i < event.results.length; i++) {
+        fullTranscript += event.results[i][0].transcript;
+      }
+      
+      setInput(fullTranscript);
+
+      clearTimeout(silenceTimer);
+      silenceTimer = setTimeout(() => {
+        if (fullTranscript.trim()) {
+          recognition.stop();
+          setInput("");
+          sendMessage(fullTranscript.trim());
+        }
+      }, 1500); // 1.5 seconds of silence triggers send
     };
 
     recognition.onerror = (event: any) => {
       console.error("Speech error:", event.error);
       if (event.error === "no-speech") {
-        toast.error("Didn't catch that. Try again.");
+        // Just ignore no-speech, it will timeout eventually or user can stop
       } else if (event.error === "not-allowed") {
         toast.error("Mic access denied. Allow it in browser settings.");
+        setIsListening(false);
       } else if (event.error !== "aborted") {
         toast.error("Voice error. Please try again.");
+        setIsListening(false);
       }
-      setIsListening(false);
     };
 
     recognition.onend = () => {
       setIsListening(false);
+      clearTimeout(silenceTimer);
     };
 
     recognitionRef.current = recognition;
@@ -738,7 +757,7 @@ function ChatPanelInner({
                     <label className="text-xs font-medium text-muted-foreground">Gemini Model</label>
                     <Input
                       type="text"
-                      placeholder="e.g. gemini-2.5-flash"
+                      placeholder="e.g. gemini-3.1-flash-lite"
                       value={geminiModel}
                       onChange={(e) => setGeminiModel(e.target.value)}
                       className="bg-background"

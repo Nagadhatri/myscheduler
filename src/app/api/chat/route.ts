@@ -363,27 +363,20 @@ ERROR HANDLING:
           contents.push({ role: "user", parts: [{ text: message }] });
         }
 
-        const modelsToTry = customModel 
-          ? [customModel, GEMINI_MODEL, "gemini-3.1-flash-lite", "gemini-2.5-flash", "gemini-2.0-flash"]
-          : [GEMINI_MODEL, "gemini-3.1-flash-lite", "gemini-2.5-flash", "gemini-2.0-flash"];
-
-        const uniqueModels = [...new Set(modelsToTry)];
+        const modelToUse = customModel || "gemini-3.1-flash-lite";
         let response;
-        for (const modelName of uniqueModels) {
-          try {
-            response = await client.models.generateContent({
-              model: modelName,
-              contents,
-              config: {
-                systemInstruction,
-                // @ts-ignore
-                tools: [{ functionDeclarations: tools }],
-              },
-            });
-            break;
-          } catch (e: any) {
-             if (modelName === modelsToTry[modelsToTry.length - 1]) throw e;
-          }
+        try {
+          response = await client.models.generateContent({
+            model: modelToUse,
+            contents,
+            config: {
+              systemInstruction,
+              // @ts-ignore
+              tools: [{ functionDeclarations: tools }],
+            },
+          });
+        } catch (e: any) {
+           throw e;
         }
         
         if (response) {
@@ -409,9 +402,17 @@ ERROR HANDLING:
         }
       } catch (geminiError: any) {
         console.error("Gemini API Error:", geminiError);
+        const errorMessage = geminiError.message || "";
+        
+        let friendlyMessage = `🚨 **AI Engine Offline**\n\nI tried to connect to my Gemini AI brain, but your API Key seems to be invalid or there was an error. Please update the \`GEMINI_API_KEY\` in your \`.env.local\` file with a valid key from Google AI Studio.`;
+        
+        if (errorMessage.includes("429") || errorMessage.toLowerCase().includes("quota")) {
+          friendlyMessage = `🚨 **AI Quota Exceeded**\n\nI tried to connect to my Gemini AI brain, but you have exceeded your free tier quota limits. Please check your Google AI Studio billing details or wait a moment before trying again.`;
+        }
+
         return NextResponse.json({
           type: "text",
-          text: `🚨 **AI Engine Offline**\n\nI tried to connect to my Gemini AI brain, but your API Key is invalid! Please update the \`GEMINI_API_KEY\` in your \`.env.local\` file with a valid key from Google AI Studio.\n\nError: ${geminiError.message}`
+          text: `${friendlyMessage}\n\nError Details: ${errorMessage}`
         });
       }
     } else {
