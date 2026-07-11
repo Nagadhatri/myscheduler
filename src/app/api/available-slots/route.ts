@@ -56,9 +56,38 @@ export async function GET(req: Request) {
       )
       .map((s: any) => s.start_time);
 
+    // Get current date and hour in IST (Asia/Kolkata) since user is in +05:30
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Kolkata',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      hour12: false
+    });
+    
+    const parts = formatter.formatToParts(new Date());
+    let yyyy, mm, dd, hh;
+    for (const part of parts) {
+      if (part.type === 'year') yyyy = part.value;
+      if (part.type === 'month') mm = part.value;
+      if (part.type === 'day') dd = part.value;
+      if (part.type === 'hour') hh = part.value;
+    }
+    const todayDate = `${yyyy}-${mm}-${dd}`;
+    // handle 24:00 which sometimes happens with hour12:false depending on Node version
+    const currentHour = hh === '24' ? 0 : parseInt(hh || '0', 10);
+    const isToday = date === todayDate;
+
     // Generate all hourly slots from 5 AM to 11 PM
     const allSlots = [];
     for (let h = 5; h < 23; h++) {
+      // Exclude lunch time (12:00 PM - 1:00 PM)
+      if (h === 12) continue;
+
+      // Exclude past slots if the date requested is today
+      if (isToday && h <= currentHour) continue;
+
       const st = `${String(h).padStart(2, "0")}:00:00`;
       const et = `${String(h + 1).padStart(2, "0")}:00:00`;
       if (!bookedTimes.includes(st)) {
