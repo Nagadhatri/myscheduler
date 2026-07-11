@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { format } from "date-fns";
-import { MessageCircle, X, Send, Bot, Sparkles, Trash2, Mic, MicOff, Volume2, VolumeX, Globe } from "lucide-react";
+import { MessageCircle, X, Send, Bot, Sparkles, Trash2, Mic, MicOff, Volume2, VolumeX, Globe, User } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { ChatErrorBoundary } from "./ChatErrorBoundary";
@@ -686,13 +686,18 @@ function ChatPanelInner({
               return (
                 <div
                   key={i}
-                  className={`flex mb-3 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+                  className={`flex items-end gap-2 mb-4 animate-in fade-in slide-in-from-bottom-2 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
                 >
+                  {msg.role !== "user" && (
+                    <div className="w-8 h-8 shrink-0 rounded-full bg-primary/20 flex items-center justify-center border border-primary/30 shadow-[0_0_10px_rgba(99,102,241,0.2)]">
+                      <Sparkles className="w-4 h-4 text-primary" />
+                    </div>
+                  )}
                   <div
-                    className={`max-w-[85%] px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed ${
+                    className={`max-w-[80%] px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-md ${
                       msg.role === "user"
-                        ? "bg-primary text-primary-foreground rounded-br-md"
-                        : "bg-white/5 border border-white/5 rounded-bl-md"
+                        ? "bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-br-sm shadow-indigo-500/20"
+                        : "bg-slate-800/80 backdrop-blur-md border border-white/10 text-slate-100 rounded-bl-sm"
                     }`}
                   >
                     <div className="prose prose-invert prose-sm max-w-none break-words">
@@ -769,6 +774,11 @@ function ChatPanelInner({
                       </ReactMarkdown>
                     </div>
                   </div>
+                  {msg.role === "user" && (
+                    <div className="w-8 h-8 shrink-0 rounded-full bg-slate-800 flex items-center justify-center border border-white/10">
+                      <User className="w-4 h-4 text-slate-300" />
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -816,16 +826,19 @@ function ChatPanelInner({
             )}
 
             {loading && !pendingCall && (
-              <div className="flex mb-3 justify-start">
-                <div className="px-4 py-2.5 rounded-2xl rounded-bl-md bg-white/5 border border-white/5">
-                  <div className="flex gap-1.5">
-                    <div className="w-2 h-2 rounded-full bg-primary/40 animate-bounce" />
+              <div className="flex items-end gap-2 mb-4 animate-in fade-in slide-in-from-bottom-2 justify-start">
+                <div className="w-8 h-8 shrink-0 rounded-full bg-primary/20 flex items-center justify-center border border-primary/30 shadow-[0_0_10px_rgba(99,102,241,0.2)]">
+                  <Sparkles className="w-4 h-4 text-primary" />
+                </div>
+                <div className="px-4 py-3.5 rounded-2xl rounded-bl-sm bg-slate-800/80 backdrop-blur-md border border-white/10 shadow-md">
+                  <div className="flex gap-1.5 items-center h-full">
+                    <div className="w-2 h-2 rounded-full bg-primary/60 animate-bounce" />
                     <div
-                      className="w-2 h-2 rounded-full bg-primary/40 animate-bounce"
+                      className="w-2 h-2 rounded-full bg-primary/60 animate-bounce"
                       style={{ animationDelay: "0.15s" }}
                     />
                     <div
-                      className="w-2 h-2 rounded-full bg-primary/40 animate-bounce"
+                      className="w-2 h-2 rounded-full bg-primary/60 animate-bounce"
                       style={{ animationDelay: "0.3s" }}
                     />
                   </div>
