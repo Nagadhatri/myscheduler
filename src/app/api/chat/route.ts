@@ -392,7 +392,7 @@ ERROR HANDLING:
             return NextResponse.json({
               type: "function_call",
               functionCall: call,
-              thoughtSignature: part?.thoughtSignature || part?.thought_signature,
+              thoughtSignature: part?.thoughtSignature || (part as any)?.thought_signature,
             });
           }
           
