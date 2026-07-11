@@ -539,7 +539,7 @@ function buildVisitorResponse(intent: Intent, text: string, history: any[]): any
 }
 
 // ── Follow-up Detection (conversational context) ─────────
-function detectFollowUp(text: string, history: any[]): any | null {
+function detectFollowUp(text: string, history: any[], context: string): any | null {
   const t = text.toLowerCase().trim();
   if (history.length === 0) return null;
 
@@ -551,10 +551,17 @@ function detectFollowUp(text: string, history: any[]): any | null {
     try {
       const data = JSON.parse(t);
       if (data.users && data.users.length > 0) {
-        return {
-          type: "text",
-          text: `I found them! Awesome. What **date** would you like to book a slot for? (e.g. tomorrow, next Monday, 2026-06-25)`
-        };
+        if (context === "owner") {
+          return {
+            type: "text",
+            text: `I found them! Awesome. Would you like me to take you to their schedule page so you can book a slot with them? (Reply "yes" to go there!) <!-- /visit/${data.users[0].id} -->`
+          };
+        } else {
+          return {
+            type: "text",
+            text: `I found them! Awesome. What **date** would you like to book a slot for? (e.g. tomorrow, next Monday, 2026-06-25)`
+          };
+        }
       } else {
         return {
           type: "text",
@@ -761,7 +768,7 @@ function detectFollowUp(text: string, history: any[]): any | null {
   }
 
   // User says "navigate me" or "sure" after a search result
-  if (lastBotText.includes("search results") || lastBotText.includes("view schedule")) {
+  if (lastBotText.includes("search results") || lastBotText.includes("view schedule") || lastBotText.includes("schedule page")) {
     const match = lastBotText.match(/\/visit\/([\w-]+)/);
     if (match && /^(yes|yeah|yep|sure|ok|okay|go ahead|navigate|take me|show|open|navigate me)\b/.test(t)) {
       return {
@@ -1299,7 +1306,8 @@ CRITICAL RULES:
 2. If the user asks to accept/reject a booking, use 'respondToBooking'. If you don't know the booking ID, use 'queryBookings' first.
 3. If the user asks to cancel/delete a meeting, use 'deleteSlot'. If you don't know the slot ID, use 'getTodaySchedule' first.
 4. GLOBAL LANGUAGE MIRRORING: Reply in the EXACT language the user uses. If Hinglish, reply in Hinglish. If Telugu/Telglish, reply in Telglish.
-5. You're also a general-purpose AI — happy to chat, answer questions, or help with anything beyond scheduling.
+5. If the user asks to book a meeting with SOMEONE ELSE, you MUST use 'searchPeople' to find that person. Once found, offer to navigate the user to that person's schedule page to book it. If they agree, use 'navigateToPage' (e.g. \`/visit/[their_user_id]\`). DO NOT say you lack the tools to book it!
+6. You're also a general-purpose AI — happy to chat, answer questions, or help with anything beyond scheduling.
 
 ERROR HANDLING:
 - If something fails, say it plainly: "That didn't work — [reason]. Want me to try again?"
@@ -1417,7 +1425,7 @@ ERROR HANDLING:
     }
 
     // Try follow-up detection first
-    let localResponse = detectFollowUp(message || "", history || []);
+    let localResponse = detectFollowUp(message || "", history || [], context || "visitor");
     if (!localResponse) {
       // Fallback to local intent detection
       const intent = detectIntent(message || "");
