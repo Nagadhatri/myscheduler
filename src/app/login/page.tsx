@@ -15,7 +15,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Lock, Mail, LayoutDashboard, Eye, EyeOff } from "lucide-react";
+import { Lock, Mail, LayoutDashboard, Eye, EyeOff, Loader2, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import ChatPanel from "@/components/chatbot/ChatPanel";
 
@@ -23,6 +23,11 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [csrfToken, setCsrfToken] = useState("");
+
+  import("react").then((React) => {
+    if (!csrfToken) setCsrfToken(crypto.randomUUID());
+  });
   const [loading, setLoading] = useState(false);
   const [loginError, setLoginError] = useState("");
   const [emailResent, setEmailResent] = useState(false);
@@ -76,7 +81,9 @@ export default function LoginPage() {
       }
     } else {
       toast.success("Welcome back!");
-      window.location.href = "/dashboard";
+      const urlParams = new URLSearchParams(window.location.search);
+      const redirectUrl = urlParams.get('redirect') || '/dashboard';
+      window.location.href = redirectUrl;
     }
   };
 
@@ -88,7 +95,13 @@ export default function LoginPage() {
       </div>
 
       <Card className="w-full max-w-md glass-card border-white/10 relative z-10">
-        <CardHeader className="text-center pb-2">
+        <div className="absolute top-4 left-4">
+          <Link href="/" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors">
+            <ArrowLeft className="w-4 h-4" />
+            Back to Home
+          </Link>
+        </div>
+        <CardHeader className="text-center pb-2 pt-10">
           <div className="w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto mb-4">
             <LayoutDashboard className="w-7 h-7 text-primary" />
           </div>
@@ -98,13 +111,14 @@ export default function LoginPage() {
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleLogin}>
+          <input type="hidden" name="csrf_token" value={csrfToken} />
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-sm">Email</Label>
+              <Label htmlFor="login-email" className="text-sm">Email</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
-                  id="email"
+                  id="login-email"
                   type="email"
                   placeholder="you@example.com"
                   value={email}
@@ -126,6 +140,7 @@ export default function LoginPage() {
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
+                  placeholder="Min 6 characters"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
@@ -144,7 +159,12 @@ export default function LoginPage() {
           </CardContent>
           <CardFooter className="flex flex-col gap-3">
             <Button type="submit" className="w-full glow-primary" disabled={loading}>
-              {loading ? "Signing in..." : "Sign In"}
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Signing in...
+                </>
+              ) : "Sign In"}
             </Button>
             {loginError === "email_not_verified" && !emailResent && (
               <Button type="button" variant="outline" className="w-full" onClick={resendVerification}>
@@ -158,6 +178,13 @@ export default function LoginPage() {
           </CardFooter>
         </form>
       </Card>
+      
+      {/* Standard Footer */}
+      <footer className="absolute bottom-0 w-full z-10 border-t border-white/5 py-8 text-center text-sm text-muted-foreground bg-card/10">
+        Built with ❤️ using <a href="https://nextjs.org" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Next.js</a>, <a href="https://supabase.com" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Supabase</a> & <a href="https://gemini.google.com" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Gemini AI</a><br/>
+        <span className="text-xs opacity-70 mt-2 block">© 2026 MyScheduler. All rights reserved.</span>
+      </footer>
+
       <ChatPanel context="visitor" />
     </div>
   );

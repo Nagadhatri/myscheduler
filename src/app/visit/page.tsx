@@ -4,10 +4,11 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Search, User, ArrowRight, CalendarDays, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import Link from "next/link";
 import ChatPanel from "@/components/chatbot/ChatPanel";
 import PastBookingLookup from "@/components/visitor/PastBookingLookup";
 
@@ -67,18 +68,18 @@ export default function PublicSearchPortal() {
           <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
             <CalendarDays className="w-5 h-5 text-primary" />
           </div>
-          <h1 className="text-lg font-bold tracking-tight gradient-text">MyScheduler</h1>
+          <div className="text-lg font-bold tracking-tight gradient-text">MyScheduler</div>
         </div>
         <div className="flex items-center gap-3">
           <PastBookingLookup />
-          <Button variant="outline" className="border-white/10 hover:bg-white/5 text-xs h-9" onClick={() => router.push("/login")}>
+          <Link href="/login" className={buttonVariants({ variant: "outline", className: "border-white/10 hover:bg-white/5 text-xs h-9" })}>
             Sign In
-          </Button>
+          </Link>
         </div>
       </header>
 
       {/* Main Body */}
-      <main className="relative z-10 flex-grow flex items-center justify-center p-4 py-12">
+      <main id="main-content" className="relative z-10 flex-grow flex items-center justify-center p-4 py-12">
         <Card className="w-full max-w-xl glass-card border-white/10 shadow-2xl">
           <CardHeader className="text-center pb-2">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-xs text-primary mb-4 mx-auto">
@@ -95,6 +96,7 @@ export default function PublicSearchPortal() {
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
+                  id="search-users"
                   placeholder="Enter name or email address..."
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
@@ -153,8 +155,9 @@ export default function PublicSearchPortal() {
       </main>
 
       {/* Footer */}
-      <footer className="relative z-10 border-t border-white/5 py-6 text-center text-xs text-muted-foreground bg-card/10">
-        Built with ❤️ using Next.js, Supabase & Gemini AI
+      <footer className="relative z-10 border-t border-white/5 py-8 text-center text-sm text-muted-foreground bg-card/10">
+        Built with ❤️ using <a href="https://nextjs.org" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Next.js</a>, <a href="https://supabase.com" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Supabase</a> & <a href="https://gemini.google.com" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Gemini AI</a><br/>
+        <span className="text-xs opacity-70 mt-2 block">© 2026 MyScheduler. All rights reserved.</span>
       </footer>
 
       {/* Chatbot support */}

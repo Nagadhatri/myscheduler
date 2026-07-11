@@ -14,7 +14,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Mail, LayoutDashboard, ArrowLeft } from "lucide-react";
+import { Mail, KeyRound, ArrowLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
 import ChatPanel from "@/components/chatbot/ChatPanel";
 
@@ -22,7 +22,12 @@ export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [csrfToken, setCsrfToken] = useState("");
   const supabase = createClient();
+
+  import("react").then((React) => {
+    if (!csrfToken) setCsrfToken(crypto.randomUUID());
+  });
 
   const handleReset = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,9 +56,15 @@ export default function ForgotPasswordPage() {
       </div>
 
       <Card className="w-full max-w-md glass-card border-white/10 relative z-10">
-        <CardHeader className="text-center pb-2">
+        <div className="absolute top-4 left-4">
+          <Link href="/" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors">
+            <ArrowLeft className="w-4 h-4" />
+            Back to Home
+          </Link>
+        </div>
+        <CardHeader className="text-center pb-2 pt-10">
           <div className="w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto mb-4">
-            <LayoutDashboard className="w-7 h-7 text-primary" />
+            <KeyRound className="w-7 h-7 text-primary" />
           </div>
           <CardTitle className="text-2xl font-bold gradient-text">Reset Password</CardTitle>
           <CardDescription className="mt-1">
@@ -79,6 +90,7 @@ export default function ForgotPasswordPage() {
           </CardContent>
         ) : (
           <form onSubmit={handleReset}>
+            <input type="hidden" name="csrf_token" value={csrfToken} />
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email" className="text-sm">Email Address</Label>
@@ -98,7 +110,12 @@ export default function ForgotPasswordPage() {
             </CardContent>
             <CardFooter className="flex flex-col gap-3">
               <Button type="submit" className="w-full glow-primary" disabled={loading}>
-                {loading ? "Sending link..." : "Send Reset Link"}
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Sending link...
+                  </>
+                ) : "Send Reset Link"}
               </Button>
               <Link href="/login" className="text-sm text-muted-foreground hover:text-primary flex items-center gap-1.5 transition-colors">
                 <ArrowLeft className="w-4 h-4" />
@@ -108,6 +125,13 @@ export default function ForgotPasswordPage() {
           </form>
         )}
       </Card>
+
+      {/* Standard Footer */}
+      <footer className="absolute bottom-0 w-full z-10 border-t border-white/5 py-8 text-center text-sm text-muted-foreground bg-card/10">
+        Built with ❤️ using <a href="https://nextjs.org" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Next.js</a>, <a href="https://supabase.com" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Supabase</a> & <a href="https://gemini.google.com" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Gemini AI</a><br/>
+        <span className="text-xs opacity-70 mt-2 block">© 2026 MyScheduler. All rights reserved.</span>
+      </footer>
+
       <ChatPanel context="visitor" />
     </div>
   );

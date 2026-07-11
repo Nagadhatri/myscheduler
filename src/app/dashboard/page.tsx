@@ -4,8 +4,26 @@ import BookingHistory from "@/components/owner/BookingHistory";
 import { DashboardProvider } from "@/components/owner/DashboardContext";
 import ChartHistoryButton from "@/components/owner/ChartHistoryButton";
 import OwnerChatPanelWrapper from "@/components/chatbot/OwnerChatPanelWrapper";
+import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
+import type { Metadata } from "next";
 
-export default function DashboardPage() {
+export const metadata: Metadata = {
+  title: "Dashboard | MyScheduler",
+  description: "Manage your schedule and bookings.",
+  openGraph: {
+    title: "Dashboard | MyScheduler",
+    description: "Manage your schedule and bookings.",
+  },
+};
+
+export default async function DashboardPage() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    redirect("/login?redirect=/dashboard");
+  }
+
   return (
     <DashboardProvider>
       <div className="p-6">

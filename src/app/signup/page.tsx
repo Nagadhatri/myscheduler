@@ -15,7 +15,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { toast } from "sonner";
-import { UserPlus, Mail, Lock, User, Eye, EyeOff, CheckCircle, ArrowRight, MailOpen } from "lucide-react";
+import { UserPlus, Mail, Lock, User, Eye, EyeOff, CheckCircle, ArrowRight, MailOpen, Loader2, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import ChatPanel from "@/components/chatbot/ChatPanel";
 
@@ -27,13 +27,34 @@ export default function SignupPage() {
   const [occupation, setOccupation] = useState("");
   const [loading, setLoading] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [csrfToken, setCsrfToken] = useState("");
   const router = useRouter();
+
+  import("react").then((React) => {
+    if (!csrfToken) setCsrfToken(crypto.randomUUID());
+  });
+
+  const getPasswordStrength = (pwd: string) => {
+    let strength = 0;
+    if (pwd.length >= 6) strength++;
+    if (pwd.length >= 8) strength++;
+    if (/[A-Z]/.test(pwd)) strength++;
+    if (/[0-9]/.test(pwd)) strength++;
+    if (/[^A-Za-z0-9]/.test(pwd)) strength++;
+    return Math.min(strength, 4);
+  };
+  const strength = getPasswordStrength(password);
+  const strengthColors = ["bg-red-500", "bg-orange-500", "bg-yellow-500", "bg-green-500", "bg-emerald-500"];
   const supabase = createClient();
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password.length < 6) {
       toast.error("Password must be at least 6 characters.");
+      return;
+    }
+    if (strength < 2) {
+      toast.error("Password is too weak. Please add numbers or uppercase letters.");
       return;
     }
     setLoading(true);
@@ -139,7 +160,13 @@ export default function SignupPage() {
       </div>
 
       <Card className="w-full max-w-md glass-card border-white/10 relative z-10">
-        <CardHeader className="text-center pb-2">
+        <div className="absolute top-4 left-4">
+          <Link href="/" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors">
+            <ArrowLeft className="w-4 h-4" />
+            Back to Home
+          </Link>
+        </div>
+        <CardHeader className="text-center pb-2 pt-10">
           <div className="w-14 h-14 rounded-2xl bg-[var(--status-completed)]/10 border border-[var(--status-completed)]/20 flex items-center justify-center mx-auto mb-4">
             <UserPlus className="w-7 h-7 text-[var(--status-completed)]" />
           </div>
@@ -151,6 +178,7 @@ export default function SignupPage() {
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSignup}>
+          <input type="hidden" name="csrf_token" value={csrfToken} />
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="name" className="text-sm">Display Name</Label>
@@ -167,11 +195,11 @@ export default function SignupPage() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-sm">Email</Label>
+              <Label htmlFor="signup-email" className="text-sm">Email</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
-                  id="email"
+                  id="signup-email"
                   type="email"
                   placeholder="you@example.com"
                   value={email}
@@ -203,6 +231,18 @@ export default function SignupPage() {
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
+              {password.length > 0 && (
+                <div className="pt-1">
+                  <div className="flex gap-1 h-1.5 mb-1.5">
+                    {[...Array(4)].map((_, i) => (
+                      <div key={i} className={`flex-1 rounded-full ${i < strength ? strengthColors[strength] : 'bg-white/10'}`} />
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground text-right">
+                    {strength <= 1 ? "Weak" : strength === 2 ? "Fair" : strength === 3 ? "Good" : "Strong"}
+                  </p>
+                </div>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="occupation" className="text-sm">Occupation</Label>
@@ -221,7 +261,12 @@ export default function SignupPage() {
           </CardContent>
           <CardFooter className="flex flex-col gap-3">
             <Button type="submit" className="w-full glow-primary" disabled={loading}>
-              {loading ? "Creating account..." : "Sign Up"}
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creating account...
+                </>
+              ) : "Sign Up"}
             </Button>
             <p className="text-sm text-muted-foreground">
               Already have an account?{" "}
@@ -230,6 +275,13 @@ export default function SignupPage() {
           </CardFooter>
         </form>
       </Card>
+
+      {/* Standard Footer */}
+      <footer className="absolute bottom-0 w-full z-10 border-t border-white/5 py-8 text-center text-sm text-muted-foreground bg-card/10">
+        Built with ❤️ using <a href="https://nextjs.org" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Next.js</a>, <a href="https://supabase.com" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Supabase</a> & <a href="https://gemini.google.com" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Gemini AI</a><br/>
+        <span className="text-xs opacity-70 mt-2 block">© 2026 MyScheduler. All rights reserved.</span>
+      </footer>
+
       <ChatPanel context="visitor" />
     </div>
   );

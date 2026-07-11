@@ -601,6 +601,8 @@ function ChatPanelInner({
       {/* Floating button */}
       {mode === "floating" && !isOpen && (
         <button
+          type="button"
+          aria-label="Open Chat"
           onClick={() => setIsOpen(true)}
           className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-primary flex items-center justify-center shadow-xl animate-pulse-glow cursor-pointer transition-transform hover:scale-110"
         >

@@ -17,7 +17,7 @@ export default function LandingPage() {
           <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
             <CalendarDays className="w-5 h-5 text-primary" />
           </div>
-          <h1 className="text-lg font-bold tracking-tight gradient-text">MyScheduler</h1>
+          <div className="text-lg font-bold tracking-tight gradient-text">MyScheduler</div>
         </div>
         <div className="flex items-center gap-3">
           <Link href="/login" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
@@ -33,7 +33,7 @@ export default function LandingPage() {
       </header>
 
       {/* Main Hero & Selection Section */}
-      <main className="relative z-10 flex-grow flex flex-col items-center justify-center px-6 py-12 max-w-5xl mx-auto w-full">
+      <main id="main-content" className="relative z-10 flex-grow flex flex-col items-center justify-center px-6 py-12 max-w-5xl mx-auto w-full">
         <div className="text-center mb-12 space-y-4">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-xs text-primary mb-2">
             <Sparkles className="w-3 h-3" />
@@ -66,11 +66,11 @@ export default function LandingPage() {
                 </span>
               </p>
             </div>
-            <Link href="/visit" className="pt-4 block">
-              <button className="w-full py-3.5 rounded-xl bg-white/5 border border-white/10 hover:bg-primary hover:text-primary-foreground hover:border-primary hover:glow-primary font-semibold text-sm transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer">
+            <Link href="/visit" className="pt-4 block w-full">
+              <span className="w-full py-3.5 rounded-xl bg-white/5 border border-white/10 hover:bg-primary hover:text-primary-foreground hover:border-primary hover:glow-primary font-semibold text-sm transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer">
                 Enter Visitor Portal
                 <ArrowRight className="w-4 h-4" />
-              </button>
+              </span>
             </Link>
           </div>
 
@@ -91,11 +91,11 @@ export default function LandingPage() {
                 </span>
               </p>
             </div>
-            <Link href="/dashboard" className="pt-4 block">
-              <button className="w-full py-3.5 rounded-xl bg-white/5 border border-white/10 hover:bg-[var(--status-upcoming)] hover:text-white hover:border-[var(--status-upcoming)] hover:shadow-[var(--status-upcoming)]/20 hover:shadow-lg font-semibold text-sm transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer">
+            <Link href="/dashboard" className="pt-4 block w-full">
+              <span className="w-full py-3.5 rounded-xl bg-white/5 border border-white/10 hover:bg-[var(--status-upcoming)] hover:text-white hover:border-[var(--status-upcoming)] hover:shadow-[var(--status-upcoming)]/20 hover:shadow-lg font-semibold text-sm transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer">
                 Enter Owner Dashboard
                 <ArrowRight className="w-4 h-4" />
-              </button>
+              </span>
             </Link>
           </div>
         </div>
@@ -103,7 +103,8 @@ export default function LandingPage() {
 
       {/* Footer */}
       <footer className="relative z-10 border-t border-white/5 py-8 text-center text-sm text-muted-foreground bg-card/10">
-        Built with ❤️ using Next.js, Supabase & Gemini AI
+        Built with ❤️ using <a href="https://nextjs.org" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Next.js</a>, <a href="https://supabase.com" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Supabase</a> & <a href="https://gemini.google.com" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Gemini AI</a><br/>
+        <span className="text-xs opacity-70 mt-2 block">© 2026 MyScheduler. All rights reserved.</span>
       </footer>
       <ChatPanel context="visitor" />
     </div>
