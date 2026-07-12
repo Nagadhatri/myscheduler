@@ -1,11 +1,3 @@
-import { Resend } from 'resend';
-
-// Initialize Resend with the API key from environment variables
-const resend = new Resend(process.env.RESEND_API_KEY || 're_placeholder');
-
-// The default sender email address
-const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
-
 export async function sendBookingStatusEmail({
   to,
   visitorName,
@@ -21,31 +13,35 @@ export async function sendBookingStatusEmail({
   ownerName: string;
   customHtml?: string;
 }) {
-  if (!process.env.RESEND_API_KEY) {
-    console.warn("RESEND_API_KEY is not set. Email not sent.");
-    return;
+  const webhookUrl = process.env.GOOGLE_APPS_SCRIPT_WEBHOOK_URL;
+  
+  if (!webhookUrl) {
+    console.warn('GOOGLE_APPS_SCRIPT_WEBHOOK_URL is not set. Skipping email send.');
+    return { success: false, error: 'Webhook URL not set' };
   }
 
   let subject = `Update on your meeting request with ${ownerName}`;
-  let actionText = '';
-
-  if (status === 'Accepted') {
+  
+  if (status === 'New Request' || status === 'New Request from Unknown') {
+    subject = `New Booking Request from ${visitorName}`;
+  } else if (status === 'Accepted') {
     subject = `Meeting Accepted: ${ownerName}`;
-    actionText = 'has accepted your meeting request.';
   } else if (status === 'Cancelled' || status === 'Declined') {
     subject = `Meeting Declined: ${ownerName}`;
-    actionText = 'has declined your meeting request.';
   } else if (status === 'Rescheduled') {
     subject = `Meeting Rescheduled: ${ownerName}`;
-    actionText = 'has proposed to reschedule your meeting.';
   } else if (status === 'Completed') {
     subject = `Meeting Completed: ${ownerName}`;
-    actionText = 'has marked your meeting as completed.';
-  } else {
-    actionText = `has updated your meeting status to ${status}.`;
   }
 
-  const html = `
+  let actionText = '';
+  if (status === 'Accepted') actionText = 'has accepted your meeting request.';
+  else if (status === 'Cancelled' || status === 'Declined') actionText = 'has declined your meeting request.';
+  else if (status === 'Rescheduled') actionText = 'has proposed to reschedule your meeting.';
+  else if (status === 'Completed') actionText = 'has marked your meeting as completed.';
+  else actionText = `has updated your meeting status to ${status}.`;
+
+  const html = customHtml || `
     <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
       <h2 style="color: #333;">Hello ${visitorName},</h2>
       <p style="color: #555; line-height: 1.5;">
@@ -64,15 +60,22 @@ export async function sendBookingStatusEmail({
   `;
 
   try {
-    const data = await resend.emails.send({
-      from: `MyScheduler <${FROM_EMAIL}>`,
-      to: [to],
-      subject,
-      html: customHtml || html,
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ to, subject, body: html }),
     });
-    return { success: true, data };
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data;
   } catch (error) {
-    console.error("Failed to send email via Resend:", error);
-    return { success: false, error };
+    console.error('Failed to send email via webhook', error);
+    return { success: false, error: String(error) };
   }
 }
