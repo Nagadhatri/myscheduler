@@ -55,7 +55,8 @@ function ChatPanelInner({
   
   const [showSettings, setShowSettings] = useState(false);
   const [geminiApiKey, setGeminiApiKey] = useState("");
-  const [geminiModel, setGeminiModel] = useState("");
+  const [geminiModel, setGeminiModel] = useState("gemini-3.1-flash-lite");
+  const [voiceLang, setVoiceLang] = useState("");
 
   const [ws, setWs] = useState<WebSocket | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -91,8 +92,9 @@ function ChatPanelInner({
 
     // Load custom API settings
     if (typeof window !== "undefined") {
-      setGeminiApiKey(localStorage.getItem('gemini_api_key') || '');
-      setGeminiModel(localStorage.getItem('gemini_model') || 'gemini-3.1-flash-lite');
+      setGeminiApiKey(localStorage.getItem("gemini_api_key") || "");
+      setGeminiModel(localStorage.getItem("gemini_model") || "gemini-3.1-flash-lite");
+      setVoiceLang(localStorage.getItem("voice_lang") || "");
     }
   }, [selectedChatDate, context]);
 
@@ -123,14 +125,15 @@ function ChatPanelInner({
 
     const utterance = new SpeechSynthesisUtterance(cleanText);
 
-    // Pick the best available English voice
+    // Pick voice based on language setting, fallback to browser default
+    const targetLang = voiceLang || navigator.language || "en-US";
+    const targetPrefix = targetLang.split('-')[0];
     const voices = window.speechSynthesis.getVoices();
     const preferred =
-      voices.find(v => v.name.includes('Google US English')) ||
-      voices.find(v => v.name.includes('Google') && v.lang.startsWith('en')) ||
-      voices.find(v => v.name.includes('Microsoft Zira')) ||
-      voices.find(v => v.name.includes('Microsoft') && v.lang.startsWith('en')) ||
-      voices.find(v => v.lang.startsWith('en-'));
+      voices.find(v => v.lang === targetLang && (v.name.includes('Google') || v.name.includes('Microsoft'))) ||
+      voices.find(v => v.lang.startsWith(targetPrefix) && (v.name.includes('Google') || v.name.includes('Microsoft'))) ||
+      voices.find(v => v.lang.startsWith(targetPrefix)) ||
+      voices[0];
     if (preferred) utterance.voice = preferred;
 
     utterance.rate = 1.05;
@@ -182,7 +185,7 @@ function ChatPanelInner({
 
     setIsListening(true);
     const recognition = new SpeechRecognition();
-    recognition.lang = "en-US";
+    recognition.lang = voiceLang || navigator.language || "en-US";
     recognition.interimResults = true;
     recognition.maxAlternatives = 1;
     recognition.continuous = true;
@@ -766,11 +769,34 @@ function ChatPanelInner({
                       className="bg-background"
                     />
                   </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-muted-foreground">Voice Language</label>
+                    <select
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      value={voiceLang}
+                      onChange={(e) => setVoiceLang(e.target.value)}
+                    >
+                      <option value="">Browser Default</option>
+                      <option value="en-US">English (US)</option>
+                      <option value="en-GB">English (UK)</option>
+                      <option value="es-ES">Spanish</option>
+                      <option value="fr-FR">French</option>
+                      <option value="de-DE">German</option>
+                      <option value="it-IT">Italian</option>
+                      <option value="ja-JP">Japanese</option>
+                      <option value="ko-KR">Korean</option>
+                      <option value="zh-CN">Chinese (Simplified)</option>
+                      <option value="pt-BR">Portuguese</option>
+                      <option value="ru-RU">Russian</option>
+                      <option value="hi-IN">Hindi</option>
+                    </select>
+                  </div>
                   <Button 
                     className="w-full"
                     onClick={() => {
                       localStorage.setItem('gemini_api_key', geminiApiKey);
                       localStorage.setItem('gemini_model', geminiModel);
+                      localStorage.setItem('voice_lang', voiceLang);
                       setShowSettings(false);
                       toast.success("AI Settings saved!");
                     }}
