@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useDashboard } from "./DashboardContext";
 import { Bell, CheckCircle2, MessageSquare, AlertCircle, FileText, Inbox, Check, X, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -21,8 +22,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export default function NotificationsDropdown() {
+  const { bookings, fetchBookings } = useDashboard();
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
-  const [pendingBookings, setPendingBookings] = useState<Booking[]>([]);
+  // pendingBookings is derived from context
+  const pendingBookings = bookings.filter(b => b.booking_status === "Pending");
   const [unreadCount, setUnreadCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
   const prevUnreadCountRef = useRef<number>(0);
@@ -60,12 +63,8 @@ export default function NotificationsDropdown() {
         prevUnreadCountRef.current = unread;
       }
 
-      // Fetch Bookings to find pending ones
-      const bookRes = await fetch("/api/my-bookings");
-      const bookData = await bookRes.json();
-      if (bookData.bookings) {
-        setPendingBookings(bookData.bookings.filter((b: Booking) => b.booking_status === "Pending"));
-      }
+      // Fetch Bookings via context
+      await fetchBookings();
     } catch (error) {
       console.error("Failed to fetch data", error);
     }

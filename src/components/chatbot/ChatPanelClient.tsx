@@ -97,8 +97,8 @@ function ChatPanelInner({
       setMessages((prev: any) => [...prev, { 
         id: Date.now().toString(),
         role: 'model', 
-        content: "⚠️ The AI Engine failed to respond. Please configure a valid Gemini API Key in the settings before chatting.",
-        parts: [{ type: 'text', text: "⚠️ The AI Engine failed to respond. Please configure a valid Gemini API Key in the settings before chatting." }]
+        content: "⚠️ **The AI Engine failed to respond.**\n\nThis is usually because your Gemini API Key is invalid or missing.\n\n**To Fix:**\n1. Get a free API key from [Google AI Studio](https://aistudio.google.com/app/apikey).\n2. Click the ⚙️ Settings icon in this chat window and paste the new key (which starts with `AIza...`).\n3. Or update your `.env.local` file.",
+        parts: [{ type: 'text', text: "⚠️ **The AI Engine failed to respond.**\n\nThis is usually because your Gemini API Key is invalid or missing.\n\n**To Fix:**\n1. Get a free API key from [Google AI Studio](https://aistudio.google.com/app/apikey).\n2. Click the ⚙️ Settings icon in this chat window and paste the new key (which starts with `AIza...`).\n3. Or update your `.env.local` file." }]
       }]);
     },
   });
