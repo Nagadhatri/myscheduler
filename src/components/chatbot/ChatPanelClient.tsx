@@ -68,18 +68,6 @@ function ChatPanelInner({
     e?.preventDefault();
     if (!input.trim()) return;
     
-    // Graceful API Key check as requested
-    const apiKey = localStorage.getItem('gemini_api_key');
-    if (!apiKey) {
-      setMessages((prev: any) => [...prev, { 
-        id: Date.now().toString(),
-        role: 'model', 
-        content: "⚠️ Please configure your Gemini API Key in the settings before chatting.",
-        parts: [{ type: 'text', text: "⚠️ Please configure your Gemini API Key in the settings before chatting." }]
-      }]);
-      return;
-    }
-    
     sendMessage({ role: 'user', parts: [{ type: 'text', text: input }] });
     setInput("");
   };
@@ -105,16 +93,14 @@ function ChatPanelInner({
     },
     onError: (error) => {
       console.error("AI SDK Error:", error);
-      let errorMessage = "An error occurred during chat.";
-      if (error.message) {
-         if (error.message.includes('API key not valid') || error.message.includes('authentication')) {
-             errorMessage = "AI Engine Offline: Your Gemini API Key is invalid. Please check your settings or .env.local";
-         } else {
-             errorMessage = error.message;
-         }
-      }
-      toast.error(errorMessage);
-    }
+      toast.error("AI Engine Offline: Please check your Gemini API key in settings or .env.local");
+      setMessages((prev: any) => [...prev, { 
+        id: Date.now().toString(),
+        role: 'model', 
+        content: "⚠️ The AI Engine failed to respond. Please configure a valid Gemini API Key in the settings before chatting.",
+        parts: [{ type: 'text', text: "⚠️ The AI Engine failed to respond. Please configure a valid Gemini API Key in the settings before chatting." }]
+      }]);
+    },
   });
 
   const isLoading = status === 'streaming' || status === 'submitted';
