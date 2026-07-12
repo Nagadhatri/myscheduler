@@ -143,7 +143,7 @@ const VISITOR_TOOLS = {
 
 export async function POST(req: Request) {
   try {
-    const customApiKey = req.headers.get("x-gemini-api-key");
+    const customApiKey = req.headers.get("x-gemini-api-key") || process.env.GEMINI_API_KEY;
     let customModel = "gemini-1.5-flash"; // Hardcoded to fix thought_signature issue
     
     const body = await req.json();

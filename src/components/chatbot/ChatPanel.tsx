@@ -91,8 +91,16 @@ function ChatPanelInner({
        }
     },
     onError: (error) => {
-       console.error("AI SDK Error:", error);
-       toast.error("An error occurred during chat.");
+      console.error("AI SDK Error:", error);
+      let errorMessage = "An error occurred during chat.";
+      if (error.message) {
+         if (error.message.includes('API key not valid') || error.message.includes('authentication')) {
+             errorMessage = "AI Engine Offline: Your Gemini API Key is invalid. Please check your settings or .env.local";
+         } else {
+             errorMessage = error.message;
+         }
+      }
+      toast.error(errorMessage);
     }
   });
 
@@ -289,7 +297,7 @@ function ChatPanelInner({
 
   // Push-to-Talk Logic (Hold to speak)
   const handleMicDown = () => {
-    if (!geminiApiKey || isLoading) return;
+    if (isLoading) return;
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
       toast.error("Speech recognition is not supported. Use Chrome or Edge.");
@@ -424,17 +432,9 @@ function ChatPanelInner({
              {messages.length === 0 && (
               <div className="text-center py-10 px-4 space-y-4">
                 <Bot className="w-10 h-10 mx-auto text-primary/30" />
-                {!geminiApiKey ? (
-                  <div className="bg-primary/10 border border-primary/20 rounded-xl p-4 space-y-3">
-                    <p className="text-sm font-semibold text-primary">API Key Required</p>
-                    <p className="text-xs text-muted-foreground">To use the AI Assistant, please set up your Gemini API Key first.</p>
-                    <Button type="button" size="sm" onClick={() => setShowSettings(true)} className="w-full text-xs">Set API Key</Button>
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground whitespace-pre-line">
-                    {context === "visitor" ? 'Ask me to book a slot!\nTry: "Book a meeting tomorrow at 10 AM"' : 'Ask me about your schedule!\nTry: "What\'s on my calendar today?"'}
-                  </p>
-                )}
+                <p className="text-sm text-muted-foreground whitespace-pre-line">
+                  {context === "visitor" ? 'Ask me to book a slot!\nTry: "Book a meeting tomorrow at 10 AM"' : 'Ask me about your schedule!\nTry: "What\'s on my calendar today?"'}
+                </p>
               </div>
             )}
 
@@ -541,7 +541,7 @@ function ChatPanelInner({
                 value={input}
                 onChange={handleInputChange}
                 placeholder={isListening ? "🎤 Listening... release to send" : "Message Copilot..."}
-                disabled={!geminiApiKey || isLoading || !!pendingCall}
+                disabled={isLoading || !!pendingCall}
                 className="bg-white/5 border-white/5 text-sm"
               />
               <Button
@@ -554,7 +554,7 @@ function ChatPanelInner({
                 onMouseLeave={handleMicUp}
                 onTouchStart={handleMicDown}
                 onTouchEnd={handleMicUp}
-                disabled={!geminiApiKey || isLoading || !!pendingCall}
+                disabled={isLoading || !!pendingCall}
               >
                 {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
               </Button>
