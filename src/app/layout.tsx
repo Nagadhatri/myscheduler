@@ -12,7 +12,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://my-scheduler-ruddy.vercel.app"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://myscheduler-ffks.vercel.app"),
   title: "MyScheduler - Book Your Appointment",
   description: "A modern scheduling and booking platform.",
   openGraph: {
