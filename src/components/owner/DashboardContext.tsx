@@ -39,13 +39,20 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
     const { data, error } = await supabase
       .from('schedules')
-      .select('*')
+      .select('*, bookings(booking_status)')
       .eq('owner_id', user.id)
       .order('date', { ascending: true })
       .order('start_time', { ascending: true });
     
     if (!error && data) {
-      setSchedules(data as Schedule[]);
+      const validSchedules = data.filter((schedule: any) => {
+        if (!schedule.bookings || schedule.bookings.length === 0) return true;
+        const hasPendingOnly = schedule.bookings.every((b: any) => b.booking_status === "Pending");
+        const hasRejectedOnly = schedule.bookings.every((b: any) => b.booking_status === "Rejected");
+        if (hasPendingOnly || hasRejectedOnly) return false;
+        return true;
+      });
+      setSchedules(validSchedules as Schedule[]);
     }
     setLoadingSchedules(false);
   };

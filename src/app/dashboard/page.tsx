@@ -2,7 +2,6 @@ import CalendarView from "@/components/owner/CalendarView";
 import ScheduleManagement from "@/components/owner/ScheduleManagement";
 import BookingHistory from "@/components/owner/BookingHistory";
 import { DashboardProvider } from "@/components/owner/DashboardContext";
-import ChartHistoryButton from "@/components/owner/ChartHistoryButton";
 import OwnerChatPanelWrapper from "@/components/chatbot/OwnerChatPanelWrapper";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
@@ -31,7 +30,6 @@ export default async function DashboardPage() {
           <div className="lg:col-span-3 space-y-6">
             <CalendarView />
             <BookingHistory />
-            <ChartHistoryButton />
           </div>
           <div className="lg:col-span-5 space-y-6">
             <ScheduleManagement />
