@@ -4,8 +4,9 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Profile } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { User, Users, Briefcase, ExternalLink } from "lucide-react";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { User, Users, Briefcase, ExternalLink, Calendar } from "lucide-react";
 import Link from "next/link";
 
 export default function ProfileAndConnectionsPanel() {
@@ -109,11 +110,12 @@ export default function ProfileAndConnectionsPanel() {
             <div className="text-center py-6 text-xs text-muted-foreground space-y-2">
               <Users className="w-8 h-8 mx-auto opacity-20" />
               <p>No connections yet.</p>
-              <Link href="/people">
-                <Button size="sm" variant="link" className="text-xs text-primary p-0 h-auto">
-                  Find people to connect
-                </Button>
-              </Link>
+              <Link 
+              href="/people"
+              className={cn(buttonVariants({ size: "sm", variant: "link" }), "text-xs text-primary p-0 h-auto")}
+            >
+              View all
+            </Link>
             </div>
           ) : (
             connections.map((conn) => (
@@ -125,11 +127,12 @@ export default function ProfileAndConnectionsPanel() {
                   <p className="font-medium truncate">{conn.display_name}</p>
                   <p className="text-[10px] text-muted-foreground truncate">{conn.occupation || "Professional"}</p>
                 </div>
-                <Link href={`/schedule/${conn.id}`}>
-                  <Button size="sm" variant="ghost" className="h-7 px-2 hover:bg-white/5 text-[10px] flex items-center gap-1 flex-shrink-0">
-                    View
-                    <ExternalLink className="w-3 h-3" />
-                  </Button>
+                <Link 
+                  href={`/schedule/${conn.id}`}
+                  className={cn(buttonVariants({ size: "sm", variant: "ghost" }), "h-7 px-2 hover:bg-white/5 text-[10px] flex items-center gap-1 flex-shrink-0")}
+                >
+                  <Calendar className="w-3 h-3" />
+                  View
                 </Link>
               </div>
             ))

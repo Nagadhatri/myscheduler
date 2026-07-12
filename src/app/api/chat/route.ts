@@ -144,7 +144,7 @@ const VISITOR_TOOLS = {
 export async function POST(req: Request) {
   try {
     const customApiKey = req.headers.get("x-gemini-api-key") || process.env.GEMINI_API_KEY;
-    let customModel = "gemini-1.5-flash"; // Hardcoded to fix thought_signature issue
+    let customModel = "gemini-2.0-flash-lite-preview-02-05"; // Model as per user request
     
     const body = await req.json();
     const { messages, context, urlPath, clientData } = body;
@@ -174,6 +174,8 @@ You are the personal AI Assistant (Smart Navigator) for the logged-in owner.
 - You can search for other people to connect with.
 - You can generate analytical reports.
 - You are autonomous: use your tools to accomplish tasks, and immediately use follow-up tools if necessary.
+- **Language Support**: You must understand and fluently respond in the language the user speaks. If the user uses "Tenglish" (Telugu words written in English alphabet) or any other regional language, you must respond warmly and fluently in the same language or script.
+- **Action-Tags**: You can trigger navigation in the app by outputting exactly \`<ACTION>navigate:/path</ACTION>\` in your response. For example: \`<ACTION>navigate:/dashboard</ACTION>\`. Always do this when the user asks to go to a specific page.
 - Be concise.
 `;
 
@@ -182,6 +184,8 @@ You are an intelligent booking assistant representing the owner of this page.
 - The visitor wants to book a time with the owner or find out more about them.
 - Look up available slots and help the visitor submit a booking request.
 - Ensure all dates are in YYYY-MM-DD format when calling tools.
+- **Language Support**: You must understand and fluently respond in the language the user speaks. If the user uses "Tenglish" (Telugu words written in English alphabet) or any other regional language, you must respond warmly and fluently in the same language or script.
+- **Action-Tags**: You can trigger navigation in the app by outputting exactly \`<ACTION>navigate:/path</ACTION>\` in your response. For example: \`<ACTION>navigate:/login</ACTION>\`. Do this when you want to redirect the user.
 - Be polite, concise, and helpful.
 `;
 

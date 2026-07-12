@@ -2,7 +2,8 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { LayoutDashboard, LogOut, Users, CalendarDays } from "lucide-react";
 import Link from "next/link";
 
@@ -38,11 +39,13 @@ export default function ScheduleLayout({ children }: { children: React.ReactNode
           </div>
           <nav className="hidden md:flex items-center gap-1">
             {navItems.map((item) => (
-              <Link key={item.href} href={item.href}>
-                <Button variant="ghost" size="sm" className="gap-2 text-xs hover:bg-white/5">
-                  <item.icon className="w-3.5 h-3.5" />
-                  {item.label}
-                </Button>
+              <Link 
+                key={item.href} 
+                href={item.href}
+                className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "gap-2 text-xs hover:bg-white/5")}
+              >
+                <item.icon className="w-3.5 h-3.5" />
+                {item.label}
               </Link>
             ))}
           </nav>

@@ -111,6 +111,15 @@ function ChatPanelInner({
     const lastMessage = messages[messages.length - 1];
     if (!lastMessage || lastMessage.role !== 'assistant') return;
 
+    // Action-Tag Architecture Check
+    const content = (lastMessage as any).content;
+    if (content) {
+      const actionMatch = content.match(/<ACTION>navigate:(.+?)<\/ACTION>/);
+      if (actionMatch && actionMatch[1]) {
+        router.push(actionMatch[1]);
+      }
+    }
+
     const toolParts = lastMessage.parts?.filter((p: any) => p.type.startsWith('tool-') || p.type === 'dynamic-tool') || [];
     
     if (toolParts.length > 0) {
@@ -295,49 +304,49 @@ function ChatPanelInner({
     }
   }, [messages, pendingCall, isLoading]);
 
-  // Push-to-Talk Logic (Hold to speak)
-  const handleMicDown = () => {
-    if (isLoading) return;
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      toast.error("Speech recognition is not supported. Use Chrome or Edge.");
-      return;
-    }
-    
-    window.speechSynthesis?.cancel();
-    setIsSpeaking(false);
-    setIsListening(true);
-    
-    const recognition = new SpeechRecognition();
-    recognition.lang = voiceLang || navigator.language || "en-US";
-    recognition.interimResults = true;
-    recognition.continuous = true;
-
-    recognition.onresult = (event: any) => {
-      let fullTranscript = "";
-      for (let i = 0; i < event.results.length; i++) {
-        fullTranscript += event.results[i][0].transcript;
-      }
-      setInput(fullTranscript);
-    };
-
-    recognition.onerror = () => setIsListening(false);
-    recognition.onend = () => setIsListening(false);
-    
-    recognitionRef.current = recognition;
-    recognition.start();
-  };
-
-  const handleMicUp = () => {
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
+  // Voice Toggle Logic
+  const handleMicToggle = () => {
+    if (isListening) {
+      window.speechSynthesis?.cancel();
       setIsListening(false);
-      // Auto submit on release
-      if (input.trim()) {
-         // Create a synthetic event
-         const e = { preventDefault: () => {} } as React.FormEvent<HTMLFormElement>;
-         handleSubmit(e);
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
       }
+    } else {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        toast.error("Speech recognition is not supported. Use Chrome or Edge.");
+        return;
+      }
+
+      window.speechSynthesis?.cancel();
+      setIsSpeaking(false);
+      setIsListening(true);
+
+      const recognition = new SpeechRecognition();
+      recognition.lang = voiceLang || navigator.language || "en-US";
+      recognition.continuous = true;
+      recognition.interimResults = true;
+
+      let finalTranscript = "";
+
+      recognition.onresult = (event: any) => {
+        let interimTranscript = "";
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            finalTranscript += event.results[i][0].transcript;
+          } else {
+            interimTranscript += event.results[i][0].transcript;
+          }
+        }
+        setInput(finalTranscript + interimTranscript);
+      };
+
+      recognition.onerror = () => setIsListening(false);
+      recognition.onend = () => setIsListening(false);
+      
+      recognitionRef.current = recognition;
+      recognition.start();
     }
   };
 
@@ -439,29 +448,32 @@ function ChatPanelInner({
             )}
 
             {messages.map((msg) => {
-              const textContent = (msg as any).parts?.filter((p: any) => p.type === 'text').map((p: any) => p.text).join('') || (msg as any).content || '';
+              const isUser = msg.role === "user";
+              const displayText = (msg as any).content?.replace(/<ACTION>.*?<\/ACTION>/g, '').trim();
               const toolInvocations = (msg as any).parts?.filter((p: any) => p.type.startsWith('tool-') || p.type === 'dynamic-tool').map((p: any) => ({
                 toolName: p.type === 'dynamic-tool' ? p.toolName : p.type.replace('tool-', ''),
                 toolCallId: p.toolCallId,
                 state: p.state,
                 result: p.output,
                 args: p.args || p.input
-              })) || (msg as any).toolInvocations || [];
+              })) || [];
+              
+              if (!displayText && toolInvocations.length === 0) return null;
 
               return (
               <div key={msg.id} className={`flex flex-col gap-2 mb-4 animate-in fade-in slide-in-from-bottom-2`}>
-                 <div className={`flex items-end gap-2 ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                    {msg.role !== "user" && (
+                 <div className={`flex items-end gap-2 ${isUser ? "justify-end" : "justify-start"}`}>
+                    {!isUser && (
                       <div className="w-8 h-8 shrink-0 rounded-full bg-primary/20 flex items-center justify-center border border-primary/30 shadow-[0_0_10px_rgba(99,102,241,0.2)]">
                         <Sparkles className="w-4 h-4 text-primary" />
                       </div>
                     )}
                     
-                    {textContent && (
-                      <div className={`max-w-[80%] px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-md ${msg.role === "user" ? "bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-br-sm shadow-indigo-500/20" : "bg-slate-800/80 backdrop-blur-md border border-white/10 text-slate-100 rounded-bl-sm"}`}>
+                    {displayText && (
+                      <div className={`max-w-[80%] px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-md ${isUser ? "bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-br-sm shadow-indigo-500/20" : "bg-slate-800/80 backdrop-blur-md border border-white/10 text-slate-100 rounded-bl-sm"}`}>
                         <ReactMarkdown remarkPlugins={[remarkGfm]} components={{
                           a: ({node, ...props}) => <a className="text-blue-400 hover:underline" target="_blank" {...props} />
-                        }}>{textContent}</ReactMarkdown>
+                        }}>{displayText}</ReactMarkdown>
                       </div>
                     )}
                  </div>
@@ -540,24 +552,19 @@ function ChatPanelInner({
               <Input
                 value={input}
                 onChange={handleInputChange}
-                placeholder={isListening ? "🎤 Listening... release to send" : "Message Copilot..."}
+                placeholder={isListening ? "🎤 Listening..." : "Message Copilot..."}
                 disabled={isLoading || !!pendingCall}
                 className="bg-white/5 border-white/5 text-sm"
               />
-              <Button
+              <button
                 type="button"
-                size="icon"
-                variant="outline"
-                className={`flex-shrink-0 border-white/10 transition-all duration-200 ${isListening ? "bg-red-500/20 text-red-500 border-red-500/50 scale-105 shadow-lg" : ""}`}
-                onMouseDown={handleMicDown}
-                onMouseUp={handleMicUp}
-                onMouseLeave={handleMicUp}
-                onTouchStart={handleMicDown}
-                onTouchEnd={handleMicUp}
-                disabled={isLoading || !!pendingCall}
+                onClick={handleMicToggle}
+                className={`h-10 w-10 flex-shrink-0 flex items-center justify-center rounded-lg transition-colors ${
+                  isListening ? "bg-red-500 hover:bg-red-600 animate-pulse text-white" : "bg-white/5 hover:bg-white/10 text-white/70 hover:text-white border border-white/10"
+                }`}
               >
                 {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-              </Button>
+              </button>
               <Button type="submit" size="icon" disabled={!input.trim() || isLoading || !!pendingCall} className="glow-primary flex-shrink-0">
                 <Send className="w-4 h-4" />
               </Button>

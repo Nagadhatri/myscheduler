@@ -6,7 +6,8 @@ import { createClient } from "@/lib/supabase/client";
 import { Profile, Schedule } from "@/types";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -265,11 +266,12 @@ export default function UserSchedulePage() {
         <p className="text-muted-foreground max-w-sm mb-6">
           You need to be connected with {profile?.display_name || "this person"} to view their schedule.
         </p>
-        <Link href="/people">
-          <Button className="gap-2 glow-primary">
-            <ArrowLeft className="w-4 h-4" />
-            Go to People
-          </Button>
+        <Link 
+          href="/people"
+          className={cn(buttonVariants({}), "gap-2 glow-primary")}
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Go to People
         </Link>
       </div>
     );

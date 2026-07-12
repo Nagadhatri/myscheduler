@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { sendEmailWebhook } from "@/lib/email";
+import { sendBookingStatusEmail } from "@/lib/email";
 import fs from "fs";
 import path from "path";
 
@@ -139,17 +139,21 @@ export async function POST(req: Request) {
 
       if (isConnected) {
         // Normal notification for acquaintances
-        await sendEmailWebhook({
+        await sendBookingStatusEmail({
           to: ownerProfile.email,
-          subject: `New Booking Request from ${name}`,
-          body: `<p>Dear ${ownerProfile.display_name},</p><p><strong>${name}</strong> has requested to book a slot with you. Kindly confirm whether you would like to accept their request.</p><p><b>Meeting Details:</b><br/>- Date: ${date}<br/>- Time: ${startTime} - ${endTime}<br/>- Description: ${description}</p>${actionLinksHtml}<br/><br/><p>Best regards,<br/>MyScheduler Team</p>`,
+          visitorName: name,
+          ownerName: ownerProfile.display_name,
+          status: "New Request",
+          customHtml: `<p>Dear ${ownerProfile.display_name},</p><p><strong>${name}</strong> has requested to book a slot with you. Kindly confirm whether you would like to accept their request.</p><p><b>Meeting Details:</b><br/>- Date: ${date}<br/>- Time: ${startTime} - ${endTime}<br/>- Description: ${description}</p>${actionLinksHtml}<br/><br/><p>Best regards,<br/>MyScheduler Team</p>`,
         });
       } else {
         // Special notification for non-acquaintances — owner must approve first
-        await sendEmailWebhook({
+        await sendBookingStatusEmail({
           to: ownerProfile.email,
-          subject: `⚠️ Booking Request from Unknown Person: ${name}`,
-          body: `<p>Dear ${ownerProfile.display_name},</p><p><strong>${name}</strong> (who is NOT in your contacts) has requested to book a slot with you. Kindly confirm whether you would like to accept their request.</p><p><b>Meeting Details:</b><br/>- Date: ${date}<br/>- Time: ${startTime} - ${endTime}<br/>- Description: ${description}</p>${actionLinksHtml}<br/><br/><p>Best regards,<br/>MyScheduler Team</p>`,
+          visitorName: name,
+          ownerName: ownerProfile.display_name,
+          status: "New Request from Unknown",
+          customHtml: `<p>Dear ${ownerProfile.display_name},</p><p><strong>${name}</strong> (who is NOT in your contacts) has requested to book a slot with you. Kindly confirm whether you would like to accept their request.</p><p><b>Meeting Details:</b><br/>- Date: ${date}<br/>- Time: ${startTime} - ${endTime}<br/>- Description: ${description}</p>${actionLinksHtml}<br/><br/><p>Best regards,<br/>MyScheduler Team</p>`,
         });
       }
 
@@ -158,10 +162,12 @@ export async function POST(req: Request) {
         ? "Your booking request has been submitted successfully!"
         : "Your booking request has been submitted. Since you are not yet connected with this person, they will need to approve your request first.";
 
-      await sendEmailWebhook({
+      await sendBookingStatusEmail({
         to: email,
-        subject: `Booking Request Submitted - MyScheduler`,
-        body: `<p>Hi ${name},</p><p>${statusMessage}</p><p><b>Meeting Details:</b><br/>- Date: ${date}<br/>- Time: ${startTime} - ${endTime}<br/>- Description: ${description}</p><p>You will receive another email once the host responds to your request.</p><p>Best,<br/>MyScheduler Team</p>`,
+        visitorName: name,
+        ownerName: ownerProfile.display_name,
+        status: "Submitted",
+        customHtml: `<p>Hi ${name},</p><p>${statusMessage}</p><p><b>Meeting Details:</b><br/>- Date: ${date}<br/>- Time: ${startTime} - ${endTime}<br/>- Description: ${description}</p><p>You will receive another email once the host responds to your request.</p><p>Best,<br/>MyScheduler Team</p>`,
       });
       
       // Send in-app notification to the owner

@@ -2,7 +2,8 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { LayoutDashboard, LogOut, Users, CalendarDays } from "lucide-react";
 import Link from "next/link";
 
@@ -40,15 +41,16 @@ export default function PeopleLayout({ children }: { children: React.ReactNode }
             {navItems.map((item) => {
               const isActive = pathname === item.href;
               return (
-                <Link key={item.href} href={item.href}>
-                  <Button
-                    variant={isActive ? "secondary" : "ghost"}
-                    size="sm"
-                    className={`gap-2 text-xs ${isActive ? "bg-white/10" : "hover:bg-white/5"}`}
-                  >
-                    <item.icon className="w-3.5 h-3.5" />
-                    {item.label}
-                  </Button>
+                <Link 
+                  key={item.href} 
+                  href={item.href}
+                  className={cn(
+                    buttonVariants({ variant: isActive ? "secondary" : "ghost", size: "sm" }),
+                    `gap-2 text-xs ${isActive ? "bg-white/10" : "hover:bg-white/5"}`
+                  )}
+                >
+                  <item.icon className="w-3.5 h-3.5" />
+                  {item.label}
                 </Link>
               );
             })}

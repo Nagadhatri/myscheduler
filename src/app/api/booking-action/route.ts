@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { sendEmailWebhook } from "@/lib/email";
+import { sendBookingStatusEmail } from "@/lib/email";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 
 export async function POST(req: Request) {
@@ -59,19 +59,12 @@ export async function POST(req: Request) {
     const visitorName = booking.visitor_name;
     const ownerName = user.user_metadata?.display_name || "The host";
 
-    let emailSubject = `Booking Request ${status} - MyScheduler`;
-    let emailBody = `Hi ${visitorName},\n\nYour booking request with ${ownerName} for ${booking.schedule.date} at ${booking.schedule.start_time.slice(0,5)} has been ${status.toLowerCase()}.\n`;
-    
-    if (remarks) {
-      emailBody += `\nRemarks from ${ownerName}:\n"${remarks}"\n`;
-    }
-
-    emailBody += `\nBest,\nMyScheduler Team`;
-
-    await sendEmailWebhook({
+    await sendBookingStatusEmail({
       to: visitorEmail,
-      subject: emailSubject,
-      body: emailBody,
+      visitorName,
+      ownerName,
+      status,
+      remarks,
     });
     
     // Attempt to find the visitor in profiles to send an in-app notification

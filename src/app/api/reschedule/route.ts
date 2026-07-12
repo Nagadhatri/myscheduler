@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { sendEmailWebhook } from "@/lib/email";
+import { sendBookingStatusEmail } from "@/lib/email";
 
 export async function POST(req: Request) {
   try {
@@ -92,10 +92,13 @@ export async function POST(req: Request) {
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
         const visitorLink = `${appUrl}/visit/${oldSlot.owner_id}`;
         
-        await sendEmailWebhook({
+        await sendBookingStatusEmail({
           to: booking.visitor_email,
-          subject: `Meeting Rescheduled - MyScheduler`,
-          body: `<p>Hi ${booking.visitor_name},</p><p>Your meeting with <strong>${ownerName}</strong> (${ownerEmail}) has been rescheduled.</p><p><b>Rescheduled Details:</b><br/>- New Date: ${newDate}<br/>- New Time: ${newStartTime} - ${newEndTime}</p><p><b>Reason for Rescheduling:</b><br/>${reason}</p><p>Are you okay with this rescheduled time? If not, you can rearrange your booking slot to the required time of your desire by visiting the visitor portal here: <a href="${visitorLink}">${visitorLink}</a></p><p>Best,<br/>MyScheduler Team</p>`,
+          visitorName: booking.visitor_name,
+          ownerName,
+          status: "Rescheduled",
+          remarks: reason,
+          customHtml: `<p>Hi ${booking.visitor_name},</p><p>Your meeting with <strong>${ownerName}</strong> (${ownerEmail}) has been rescheduled.</p><p><b>Rescheduled Details:</b><br/>- New Date: ${newDate}<br/>- New Time: ${newStartTime} - ${newEndTime}</p><p><b>Reason for Rescheduling:</b><br/>${reason}</p><p>Are you okay with this rescheduled time? If not, you can rearrange your booking slot to the required time of your desire by visiting the visitor portal here: <a href="${visitorLink}">${visitorLink}</a></p><p>Best,<br/>MyScheduler Team</p>`,
         });
         emailSent = true;
       } catch (emailErr) {

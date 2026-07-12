@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -80,12 +81,12 @@ export default function ForgotPasswordPage() {
               Please check your inbox (and spam folder) and click the link to reset your password.
             </p>
             <div className="pt-4">
-              <Link href="/login">
-                <Button variant="outline" className="w-full gap-2 border-white/10 hover:bg-white/5">
-                  <ArrowLeft className="w-4 h-4" />
-                  Back to Sign In
-                </Button>
-              </Link>
+                <Link 
+                  href="/login"
+                  className={cn(buttonVariants({ variant: "outline" }), "w-full gap-2 border-white/10 hover:bg-white/5")}
+                >
+                  <ArrowLeft className="w-4 h-4" /> Back to Login
+                </Link>
             </div>
           </CardContent>
         ) : (

@@ -4,7 +4,8 @@ import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Profile, Connection } from "@/types";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -22,6 +23,7 @@ import {
   Inbox,
   ArrowRight,
   Sparkles,
+  Calendar,
 } from "lucide-react";
 import ChatPanel from "@/components/chatbot/ChatPanel";
 
@@ -365,12 +367,12 @@ export default function PeoplePage() {
                       <p className="text-xs text-muted-foreground">{profile?.occupation ? `${profile.occupation} • ${profile.email}` : profile?.email}</p>
                     </div>
                     <div className="flex gap-2">
-                      <Link href={`/schedule/${profile?.id}`} className="flex-1">
-                        <Button size="sm" className="w-full h-7 text-xs gap-1 glow-primary">
-                          <CalendarDays className="w-3 h-3" />
-                          View Schedule
-                          <ArrowRight className="w-3 h-3" />
-                        </Button>
+                      <Link 
+                        href={`/schedule/${profile?.id}`} 
+                        className={cn(buttonVariants({ size: "sm" }), "flex-1 w-full h-7 text-xs gap-1 glow-primary")}
+                      >
+                        <Calendar className="w-3 h-3" />
+                        Schedule
                       </Link>
                       <Button
                         size="sm"

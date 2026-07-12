@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -140,11 +141,12 @@ export default function SignupPage() {
             </p>
           </CardContent>
           <CardFooter className="flex flex-col gap-3">
-            <Link href="/login" className="w-full">
-              <Button className="w-full glow-primary">
-                <Mail className="w-4 h-4 mr-2" />
-                Go to Login
-              </Button>
+            <Link 
+              href="/login" 
+              className={cn(buttonVariants({}), "w-full glow-primary")}
+            >
+              <Mail className="w-4 h-4 mr-2" />
+              Continue to Sign In
             </Link>
           </CardFooter>
         </Card>
