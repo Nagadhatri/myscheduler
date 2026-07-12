@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { format } from "date-fns";
-import { Message } from "./ChatPanel";
+import { type UIMessage } from "ai";
 
 export function useChatHistory(context: "owner" | "visitor") {
   const [chatDates, setChatDates] = useState<string[]>([]);
@@ -18,7 +18,7 @@ export function useChatHistory(context: "owner" | "visitor") {
     loadDates();
   }, [loadDates]);
 
-  const saveChat = (messages: Message[], dateKey?: string) => {
+  const saveChat = (messages: UIMessage[], dateKey?: string) => {
     if (messages.length === 0) return;
     const finalDate = dateKey || format(new Date(), "yyyy-MM-dd");
     const key = `myscheduler_chat_${context}_${finalDate}`;
@@ -32,7 +32,7 @@ export function useChatHistory(context: "owner" | "visitor") {
     });
   };
 
-  const loadChat = (dateKey: string): Message[] => {
+  const loadChat = (dateKey: string): UIMessage[] => {
     const key = `myscheduler_chat_${context}_${dateKey}`;
     const data = localStorage.getItem(key);
     return data ? JSON.parse(data) : [];

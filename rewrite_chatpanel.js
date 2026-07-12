@@ -1,4 +1,7 @@
-"use client";
+import fs from 'fs';
+import path from 'path';
+
+const fileContent = \`"use client";
 
 import { useState, useRef, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
@@ -18,8 +21,7 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import 'katex/dist/katex.min.css';
 
-import { useChat } from '@ai-sdk/react';
-import { DefaultChatTransport } from 'ai';
+import { useChat } from 'ai/react';
 import { ReportChart, SlotCard, PendingActionCard } from "./GenerativeUI";
 
 function ChatPanelInner({
@@ -34,6 +36,7 @@ function ChatPanelInner({
   selectedChatDate?: string | null;
 }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [pendingCall, setPendingCall] = useState<{ toolCallId: string, name: string; args: any } | null>(null);
   
   const [isListening, setIsListening] = useState(false);
@@ -62,32 +65,21 @@ function ChatPanelInner({
     }
   }, []);
 
-  const [input, setInput] = useState("");
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setInput(e.target.value);
-  const handleSubmit = (e?: React.FormEvent<HTMLFormElement>) => {
-    e?.preventDefault();
-    if (!input.trim()) return;
-    sendMessage({ role: 'user', parts: [{ type: 'text', text: input }] });
-    setInput("");
-  };
-
-  const { messages, sendMessage, status, addToolResult, setMessages } = useChat({
-    transport: new DefaultChatTransport({
-      api: '/api/chat',
-      body: {
-        context,
-        urlPath: pathname,
-        clientData: { targetUserId }
-      },
-      headers: {
-        "x-gemini-api-key": geminiApiKey,
-        "x-gemini-model": geminiModel
-      }
-    }),
-    onFinish: (message: any) => {
-       const text = message.parts?.filter((p: any) => p.type === 'text').map((p: any) => p.text).join('') || '';
-       if (voiceEnabled && text) {
-         speakText(text);
+  const { messages, input, setInput, handleInputChange, handleSubmit, append, isLoading, addToolResult, setMessages } = useChat({
+    api: '/api/chat',
+    maxSteps: 5,
+    body: {
+      context,
+      urlPath: pathname,
+      clientData: { targetUserId }
+    },
+    headers: {
+      "x-gemini-api-key": geminiApiKey,
+      "x-gemini-model": geminiModel
+    },
+    onFinish: (message) => {
+       if (voiceEnabled && message.content) {
+         speakText(message.content);
        }
     },
     onError: (error) => {
@@ -96,19 +88,14 @@ function ChatPanelInner({
     }
   });
 
-  const isLoading = status === 'streaming' || status === 'submitted';
-
   // Client-side tool execution
   useEffect(() => {
     const lastMessage = messages[messages.length - 1];
     if (!lastMessage || lastMessage.role !== 'assistant') return;
 
-    const toolParts = lastMessage.parts?.filter((p: any) => p.type.startsWith('tool-') || p.type === 'dynamic-tool') || [];
-    
-    if (toolParts.length > 0) {
-      for (const toolInvocation of toolParts as any[]) {
-        const toolName = toolInvocation.type === 'dynamic-tool' ? toolInvocation.toolName : toolInvocation.type.replace('tool-', '');
-        if (toolInvocation.state !== 'result' && !toolInvocation.output) {
+    if (lastMessage.toolInvocations) {
+      for (const toolInvocation of lastMessage.toolInvocations) {
+        if (!('result' in toolInvocation)) {
            // It's a pending tool call. Check if it's safe to auto-execute.
            const safeActions = [
             "getTodaySchedule",
@@ -124,17 +111,17 @@ function ChatPanelInner({
             "getMeetingMinutes",
           ];
           
-          if (safeActions.includes(toolName)) {
+          if (safeActions.includes(toolInvocation.toolName)) {
             // Auto execute
-            executeTool(toolInvocation.toolCallId, toolName, toolInvocation.args || toolInvocation.input);
+            executeTool(toolInvocation.toolCallId, toolInvocation.toolName, toolInvocation.args);
           } else {
             // Wait for user confirmation
             // Prevent duplicate pending calls
             if (pendingCall?.toolCallId !== toolInvocation.toolCallId) {
                 setPendingCall({
                   toolCallId: toolInvocation.toolCallId,
-                  name: toolName,
-                  args: toolInvocation.args || toolInvocation.input
+                  name: toolInvocation.toolName,
+                  args: toolInvocation.args
                 });
             }
           }
@@ -148,7 +135,7 @@ function ChatPanelInner({
     try {
       if (name === "navigateToPage") {
         router.push(args.path);
-        responseObj = { success: true, message: `Successfully navigated to ${args.path}` };
+        responseObj = { success: true, message: \`Successfully navigated to \${args.path}\` };
       } else if (name === "getCurrentUser") {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
@@ -171,7 +158,7 @@ function ChatPanelInner({
       } else if (name === "getAvailableSlots") {
         const ownerId = targetUserId || args.owner_id;
         if (!ownerId) throw new Error("No target user ID provided for checking slots.");
-        const res = await fetch(`/api/available-slots?userId=${ownerId}&date=${args.date}`);
+        const res = await fetch(\`/api/available-slots?userId=\${ownerId}&date=\${args.date}\`);
         const resData = await res.json();
         if (resData.error) throw new Error(resData.error);
         responseObj = { available_slots: resData.available_slots || [], date: args.date };
@@ -186,7 +173,7 @@ function ChatPanelInner({
         responseObj = { bookings: data || [] };
       } else if (name === "searchPeople") {
          if (args.query) {
-          const res = await fetch(`/api/search-people?query=${encodeURIComponent(args.query)}`);
+          const res = await fetch(\`/api/search-people?query=\${encodeURIComponent(args.query)}\`);
           const data = await res.json();
           if (data.error) throw new Error(data.error);
           responseObj = { users: data.users || [] };
@@ -250,12 +237,12 @@ function ChatPanelInner({
       } else if (name === "respondToBooking") {
         const { error } = await supabase.from("bookings").update({ booking_status: args.action, remarks: args.remarks }).eq("id", args.booking_id);
         if (error) throw error;
-        responseObj = { success: true, message: `Booking marked as ${args.action}` };
+        responseObj = { success: true, message: \`Booking marked as \${args.action}\` };
       } else if (name === "requestPasswordReset") {
-        const resetRedirect = `${window.location.origin}/reset-password`;
+        const resetRedirect = \`\${window.location.origin}/reset-password\`;
         const { error } = await supabase.auth.resetPasswordForEmail(args.email, { redirectTo: resetRedirect });
         if (error) throw error;
-        responseObj = { success: true, message: `Password reset link has been sent to ${args.email}.` };
+        responseObj = { success: true, message: \`Password reset link has been sent to \${args.email}.\` };
       } else if (name === "generateReport") {
         // Return dummy payload for the chart to render properly
         responseObj = { success: true, message: "Report generated.", data: [] };
@@ -265,7 +252,7 @@ function ChatPanelInner({
     }
 
     // Add tool result to trigger next step
-    addToolResult({ toolCallId, tool: name as any, output: responseObj });
+    addToolResult({ toolCallId, result: responseObj });
   };
 
   const confirmCall = async (confirmed: boolean) => {
@@ -274,7 +261,7 @@ function ChatPanelInner({
     setPendingCall(null);
 
     if (!confirmed) {
-      addToolResult({ toolCallId: call.toolCallId, tool: call.name as any, output: { success: false, error: "User cancelled action." } });
+      addToolResult({ toolCallId: call.toolCallId, result: { success: false, error: "User cancelled action." } });
       return;
     }
     await executeTool(call.toolCallId, call.name, call.args);
@@ -337,7 +324,7 @@ function ChatPanelInner({
     if (!voiceEnabled || typeof window === 'undefined' || !window.speechSynthesis) return;
     window.speechSynthesis.cancel();
     
-    const cleanText = text.replace(/\*\*([^\*]+)\*\*/g, '$1').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE00}-\u{FE0F}\u{1F900}-\u{1F9FF}•]/gu, '').replace(/#+\s/g, '').replace(/\n+/g, '. ').replace(/\s+/g, ' ').trim();
+    const cleanText = text.replace(/\\*\\*([^\\*]+)\\*\\*/g, '$1').replace(/\\[([^\\]]+)\\]\\([^)]+\\)/g, '$1').replace(/[\\u{1F300}-\\u{1FAFF}\\u{2600}-\\u{27BF}\\u{FE00}-\\u{FE0F}\\u{1F900}-\\u{1F9FF}•]/gu, '').replace(/#+\\s/g, '').replace(/\\n+/g, '. ').replace(/\\s+/g, ' ').trim();
     if (!cleanText || cleanText.length < 2) return;
     
     const utterance = new SpeechSynthesisUtterance(cleanText);
@@ -395,14 +382,17 @@ function ChatPanelInner({
               <div className="bg-card w-full max-w-sm rounded-xl shadow-2xl border border-white/10 overflow-hidden flex flex-col">
                 <div className="px-4 py-3 border-b border-white/5 flex justify-between items-center bg-white/5">
                   <h3 className="font-semibold text-sm">AI Engine Settings</h3>
-                  <button type="button" onClick={() => setShowSettings(false)} className="text-muted-foreground hover:text-white"><X className="w-4 h-4" /></button>
+                  <button onClick={() => setShowSettings(false)} className="text-muted-foreground hover:text-white"><X className="w-4 h-4" /></button>
                 </div>
                 <div className="p-4 space-y-4">
                   <div className="space-y-2">
                     <label className="text-xs font-medium text-muted-foreground">Gemini API Key</label>
                     <Input type="password" value={geminiApiKey} onChange={(e) => setGeminiApiKey(e.target.value)} className="bg-background" />
                   </div>
-
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-muted-foreground">Gemini Model</label>
+                    <Input type="text" value={geminiModel} onChange={(e) => setGeminiModel(e.target.value)} className="bg-background" />
+                  </div>
                   <div className="space-y-2">
                     <label className="text-xs font-medium text-muted-foreground">Voice Language</label>
                     <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={voiceLang} onChange={(e) => setVoiceLang(e.target.value)}>
@@ -412,7 +402,7 @@ function ChatPanelInner({
                       <option value="te-IN">Telugu</option>
                     </select>
                   </div>
-                  <Button type="button" className="w-full" onClick={() => { localStorage.setItem('gemini_api_key', geminiApiKey); localStorage.setItem('voice_lang', voiceLang); setShowSettings(false); toast.success("AI Settings saved!"); }}>
+                  <Button className="w-full" onClick={() => { localStorage.setItem('gemini_api_key', geminiApiKey); localStorage.setItem('gemini_model', geminiModel); localStorage.setItem('voice_lang', voiceLang); setShowSettings(false); toast.success("AI Settings saved!"); }}>
                     Save Settings
                   </Button>
                 </div>
@@ -428,49 +418,39 @@ function ChatPanelInner({
                   <div className="bg-primary/10 border border-primary/20 rounded-xl p-4 space-y-3">
                     <p className="text-sm font-semibold text-primary">API Key Required</p>
                     <p className="text-xs text-muted-foreground">To use the AI Assistant, please set up your Gemini API Key first.</p>
-                    <Button type="button" size="sm" onClick={() => setShowSettings(true)} className="w-full text-xs">Set API Key</Button>
+                    <Button size="sm" onClick={() => setShowSettings(true)} className="w-full text-xs">Set API Key</Button>
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground whitespace-pre-line">
-                    {context === "visitor" ? 'Ask me to book a slot!\nTry: "Book a meeting tomorrow at 10 AM"' : 'Ask me about your schedule!\nTry: "What\'s on my calendar today?"'}
+                    {context === "visitor" ? 'Ask me to book a slot!\\nTry: "Book a meeting tomorrow at 10 AM"' : 'Ask me about your schedule!\\nTry: "What\\'s on my calendar today?"'}
                   </p>
                 )}
               </div>
             )}
 
-            {messages.map((msg) => {
-              const textContent = (msg as any).parts?.filter((p: any) => p.type === 'text').map((p: any) => p.text).join('') || (msg as any).content || '';
-              const toolInvocations = (msg as any).parts?.filter((p: any) => p.type.startsWith('tool-') || p.type === 'dynamic-tool').map((p: any) => ({
-                toolName: p.type === 'dynamic-tool' ? p.toolName : p.type.replace('tool-', ''),
-                toolCallId: p.toolCallId,
-                state: p.state,
-                result: p.output,
-                args: p.args || p.input
-              })) || (msg as any).toolInvocations || [];
-
-              return (
-              <div key={msg.id} className={`flex flex-col gap-2 mb-4 animate-in fade-in slide-in-from-bottom-2`}>
-                 <div className={`flex items-end gap-2 ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+            {messages.map((msg) => (
+              <div key={msg.id} className={\`flex flex-col gap-2 mb-4 animate-in fade-in slide-in-from-bottom-2\`}>
+                 <div className={\`flex items-end gap-2 \${msg.role === "user" ? "justify-end" : "justify-start"}\`}>
                     {msg.role !== "user" && (
-                      <div className="w-8 h-8 shrink-0 rounded-full bg-primary/20 flex items-center justify-center border border-primary/30 shadow-[0_0_10px_rgba(99,102,241,0.2)]">
+                      <div className="w-8 h-8 shrink-0 rounded-full bg-primary/20 flex items-center justify-center border border-primary/30">
                         <Sparkles className="w-4 h-4 text-primary" />
                       </div>
                     )}
                     
-                    {textContent && (
-                      <div className={`max-w-[80%] px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-md ${msg.role === "user" ? "bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-br-sm shadow-indigo-500/20" : "bg-slate-800/80 backdrop-blur-md border border-white/10 text-slate-100 rounded-bl-sm"}`}>
+                    {msg.content && (
+                      <div className={\`max-w-[80%] px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-md \${msg.role === "user" ? "bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-br-sm shadow-indigo-500/20" : "bg-slate-800/80 backdrop-blur-md border border-white/10 text-slate-100 rounded-bl-sm"}\`}>
                         <ReactMarkdown remarkPlugins={[remarkGfm]} components={{
                           a: ({node, ...props}) => <a className="text-blue-400 hover:underline" target="_blank" {...props} />
-                        }}>{textContent}</ReactMarkdown>
+                        }}>{msg.content}</ReactMarkdown>
                       </div>
                     )}
                  </div>
 
                  {/* Render Generative UI for tool invocations */}
-                 {toolInvocations.map((toolInvocation: any) => {
+                 {msg.toolInvocations?.map((toolInvocation) => {
                     const { toolName, toolCallId, state } = toolInvocation;
                     
-                    if (state === 'result' || toolInvocation.result) {
+                    if (state === 'result') {
                       if (toolName === 'generateReport') {
                          return <div key={toolCallId} className="ml-10 max-w-[90%]"><ReportChart data={toolInvocation.result} /></div>;
                       }
@@ -480,7 +460,7 @@ function ChatPanelInner({
                          </div>;
                       }
                       if (toolName === 'addSlot' || toolName === 'deleteSlot' || toolName === 'rescheduleSlot') {
-                         return <div key={toolCallId} className="ml-10"><PendingActionCard message={toolInvocation.result?.message} /></div>;
+                         return <div key={toolCallId} className="ml-10"><PendingActionCard message={toolInvocation.result.message} /></div>;
                       }
                     } else if (state === 'call' && pendingCall?.toolCallId === toolCallId) {
                       return (
@@ -488,8 +468,8 @@ function ChatPanelInner({
                           <div className="max-w-[100%] px-3.5 py-3 rounded-2xl rounded-bl-md bg-primary/5 border border-primary/20 space-y-2 text-sm">
                             <p className="font-semibold text-primary text-xs">Confirm Action: {toolName}</p>
                             <div className="flex gap-2 pt-1">
-                              <Button type="button" size="sm" className="h-7 text-xs glow-primary" onClick={() => confirmCall(true)}>Confirm</Button>
-                              <Button type="button" size="sm" variant="outline" className="h-7 text-xs border-white/10" onClick={() => confirmCall(false)}>Cancel</Button>
+                              <Button size="sm" className="h-7 text-xs" onClick={() => confirmCall(true)}>Confirm</Button>
+                              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => confirmCall(false)}>Cancel</Button>
                             </div>
                           </div>
                         </div>
@@ -498,7 +478,7 @@ function ChatPanelInner({
                     return null;
                  })}
               </div>
-            )})}
+            ))}
             
             {isLoading && !pendingCall && (
               <div className="flex items-end gap-2 mb-4 justify-start ml-2">
@@ -522,14 +502,14 @@ function ChatPanelInner({
           <div className="px-3 pb-2 pt-1 flex gap-2 overflow-x-auto scrollbar-none">
              {context === 'owner' ? (
                 <>
-                  <Button type="button" variant="secondary" size="sm" className="h-7 text-[10px] shrink-0" onClick={() => sendMessage({role: 'user', parts: [{type: 'text', text: 'What is my schedule today?'}]})}>📅 Today's Schedule</Button>
-                  <Button type="button" variant="secondary" size="sm" className="h-7 text-[10px] shrink-0" onClick={() => sendMessage({role: 'user', parts: [{type: 'text', text: 'Generate a report of my bookings'}]})}>📊 Generate Report</Button>
-                  <Button type="button" variant="secondary" size="sm" className="h-7 text-[10px] shrink-0" onClick={() => sendMessage({role: 'user', parts: [{type: 'text', text: 'Check pending bookings'}]})}>🔔 Pending Bookings</Button>
+                  <Button variant="secondary" size="sm" className="h-7 text-[10px] shrink-0" onClick={() => append({role: 'user', content: 'What is my schedule today?'})}>📅 Today's Schedule</Button>
+                  <Button variant="secondary" size="sm" className="h-7 text-[10px] shrink-0" onClick={() => append({role: 'user', content: 'Generate a report of my bookings'})}>📊 Generate Report</Button>
+                  <Button variant="secondary" size="sm" className="h-7 text-[10px] shrink-0" onClick={() => append({role: 'user', content: 'Check pending bookings'})}>🔔 Pending Bookings</Button>
                 </>
              ) : (
                 <>
-                  <Button type="button" variant="secondary" size="sm" className="h-7 text-[10px] shrink-0" onClick={() => sendMessage({role: 'user', parts: [{type: 'text', text: 'What are the available slots tomorrow?'}]})}>🔍 Find Slots</Button>
-                  <Button type="button" variant="secondary" size="sm" className="h-7 text-[10px] shrink-0" onClick={() => sendMessage({role: 'user', parts: [{type: 'text', text: 'Who is the owner of this page?'}]})}>👤 About Owner</Button>
+                  <Button variant="secondary" size="sm" className="h-7 text-[10px] shrink-0" onClick={() => append({role: 'user', content: 'What are the available slots tomorrow?'})}>🔍 Find Slots</Button>
+                  <Button variant="secondary" size="sm" className="h-7 text-[10px] shrink-0" onClick={() => append({role: 'user', content: 'Who is the owner of this page?'})}>👤 About Owner</Button>
                 </>
              )}
           </div>
@@ -548,7 +528,7 @@ function ChatPanelInner({
                 type="button"
                 size="icon"
                 variant="outline"
-                className={`flex-shrink-0 border-white/10 transition-all duration-200 ${isListening ? "bg-red-500/20 text-red-500 border-red-500/50 scale-105 shadow-lg" : ""}`}
+                className={\`flex-shrink-0 border-white/10 transition-all duration-200 \${isListening ? "bg-red-500/20 text-red-500 border-red-500/50 scale-105 shadow-lg" : ""}\`}
                 onMouseDown={handleMicDown}
                 onMouseUp={handleMicUp}
                 onMouseLeave={handleMicUp}
@@ -581,3 +561,6 @@ export default function ChatPanel(props: {
     </ChatErrorBoundary>
   );
 }
+\`
+
+fs.writeFileSync(path.resolve(__dirname, 'src/components/chatbot/ChatPanel.tsx'), fileContent);
