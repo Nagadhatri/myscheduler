@@ -66,11 +66,9 @@ export default function LandingPage() {
                 </span>
               </p>
             </div>
-            <Link href="/visit" className="pt-4 block w-full">
-              <span className="w-full py-3.5 rounded-xl bg-white/5 border border-white/10 hover:bg-primary hover:text-primary-foreground hover:border-primary hover:glow-primary font-semibold text-sm transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer">
-                Enter Visitor Portal
-                <ArrowRight className="w-4 h-4" />
-              </span>
+            <Link href="/visit" className="pt-4 block w-full py-3.5 rounded-xl bg-white/5 border border-white/10 hover:bg-primary hover:text-primary-foreground hover:border-primary hover:glow-primary font-semibold text-sm transition-all duration-300 flex items-center justify-center gap-2">
+              Enter Visitor Portal
+              <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
 
@@ -91,11 +89,9 @@ export default function LandingPage() {
                 </span>
               </p>
             </div>
-            <Link href="/dashboard" className="pt-4 block w-full">
-              <span className="w-full py-3.5 rounded-xl bg-white/5 border border-white/10 hover:bg-[var(--status-upcoming)] hover:text-white hover:border-[var(--status-upcoming)] hover:shadow-[var(--status-upcoming)]/20 hover:shadow-lg font-semibold text-sm transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer">
-                Enter Owner Dashboard
-                <ArrowRight className="w-4 h-4" />
-              </span>
+            <Link href="/dashboard" className="pt-4 block w-full py-3.5 rounded-xl bg-white/5 border border-white/10 hover:bg-[var(--status-upcoming)] hover:text-white hover:border-[var(--status-upcoming)] hover:shadow-[var(--status-upcoming)]/20 hover:shadow-lg font-semibold text-sm transition-all duration-300 flex items-center justify-center gap-2">
+              Enter Owner Dashboard
+              <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
         </div>
