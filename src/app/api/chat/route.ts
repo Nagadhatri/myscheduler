@@ -149,8 +149,8 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { messages, context, urlPath, clientData } = body;
     
-    if (!customApiKey || !customApiKey.startsWith("AIza")) {
-      return NextResponse.json({ error: "Missing or invalid Gemini API Key. Keys must start with 'AIza'." }, { status: 401 });
+    if (!customApiKey) {
+      return NextResponse.json({ error: "Gemini API key is required" }, { status: 401 });
     }
 
     const google = createGoogleGenerativeAI({
