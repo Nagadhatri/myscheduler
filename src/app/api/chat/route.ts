@@ -1,4 +1,5 @@
 import { streamText, tool } from 'ai';
+import { createGroq } from '@ai-sdk/groq';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { z } from 'zod';
 import { NextResponse } from 'next/server';
@@ -143,21 +144,27 @@ const VISITOR_TOOLS = {
 
 export async function POST(req: Request) {
   try {
-    const encodedKey = "QUl6YVN5Qi1ucWJ5aU9ZcFQwdmRzY2h5aEFVWDMwU2RhTFpMVThz";
-    const fallbackKey = Buffer.from(encodedKey, "base64").toString("utf-8");
-    const customApiKey = req.headers.get("x-gemini-api-key") || process.env.GEMINI_API_KEY || fallbackKey;
-    let customModel = "gemini-2.0-flash-lite-preview-02-05"; // Model as per user request
-    
     const body = await req.json();
     const { messages, context, urlPath, clientData } = body;
     
+    // We will support both Groq and Gemini. 
+    // If the key starts with "gsk_", it's a Groq key. Otherwise, it's Gemini.
+    const customApiKey = req.headers.get("x-gemini-api-key") || process.env.GROQ_API_KEY || process.env.GEMINI_API_KEY;
+    
     if (!customApiKey) {
-      return NextResponse.json({ error: "Gemini API key is required" }, { status: 401 });
+      return NextResponse.json({ error: "An API key (Groq or Gemini) is required" }, { status: 401 });
     }
 
-    const google = createGoogleGenerativeAI({
-      apiKey: customApiKey,
-    });
+    const isGroq = customApiKey.startsWith("gsk_");
+    
+    let modelProvider;
+    if (isGroq) {
+      const groq = createGroq({ apiKey: customApiKey });
+      modelProvider = groq("llama-3.1-70b-versatile");
+    } else {
+      const google = createGoogleGenerativeAI({ apiKey: customApiKey });
+      modelProvider = google("gemini-2.0-flash-lite-preview-02-05");
+    }
 
     const PLATFORM_KNOWLEDGE = `# MyScheduler Platform Knowledge
 ## What is MyScheduler?
@@ -205,7 +212,7 @@ Active Screen Data: ${JSON.stringify(clientData || {})}
 
     // Use AI SDK streamText
     const result = streamText({
-      model: google(customModel),
+      model: modelProvider,
       messages,
       system: systemInstruction,
       tools: activeTools as any, // Cast tools as any to fix Zod typing issues with old Vercel AI SDK vs new Zod
