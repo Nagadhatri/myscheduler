@@ -93,12 +93,12 @@ function ChatPanelInner({
     },
     onError: (error) => {
       console.error("AI SDK Error:", error);
-      toast.error("AI Engine Offline: Please check your Gemini API key in settings or .env.local");
+      toast.error("AI Engine Offline: Please check your API key in settings or .env.local");
       setMessages((prev: any) => [...prev, { 
         id: Date.now().toString(),
         role: 'model', 
-        content: "⚠️ **The AI Engine failed to respond.**\n\nThis is usually because your Gemini API Key is invalid, deleted, or missing.\n\n**To Fix:**\n1. Get a free API key from [Google AI Studio](https://aistudio.google.com/app/apikey).\n2. Click the ⚙️ Settings icon in this chat window and paste the new key.\n3. Or update your `.env.local` file.",
-        parts: [{ type: 'text', text: "⚠️ **The AI Engine failed to respond.**\n\nThis is usually because your Gemini API Key is invalid, deleted, or missing.\n\n**To Fix:**\n1. Get a free API key from [Google AI Studio](https://aistudio.google.com/app/apikey).\n2. Click the ⚙️ Settings icon in this chat window and paste the new key.\n3. Or update your `.env.local` file." }]
+        content: "⚠️ **The AI Engine failed to respond.**\n\nThis is usually because your API Key is invalid, deleted, or missing.\n\n**To Fix:**\n1. **Option 1 (Gemini):** Get a free key from [Google AI Studio](https://aistudio.google.com/app/apikey).\n2. **Option 2 (Groq - Recommended):** Get a free, faster key from [Groq Console](https://console.groq.com/keys).\n3. Click the ⚙️ Settings icon in this chat window and paste your new key.\n\n*(Note: If you add it to the Vercel dashboard as `GROQ_API_KEY` or `GEMINI_API_KEY`, you won't ever need to enter it here again!)*",
+        parts: [{ type: 'text', text: "⚠️ **The AI Engine failed to respond.**\n\nThis is usually because your API Key is invalid, deleted, or missing.\n\n**To Fix:**\n1. **Option 1 (Gemini):** Get a free key from [Google AI Studio](https://aistudio.google.com/app/apikey).\n2. **Option 2 (Groq - Recommended):** Get a free, faster key from [Groq Console](https://console.groq.com/keys).\n3. Click the ⚙️ Settings icon in this chat window and paste your new key.\n\n*(Note: If you add it to the Vercel dashboard as `GROQ_API_KEY` or `GEMINI_API_KEY`, you won't ever need to enter it here again!)*" }]
       }]);
     },
   });
@@ -415,8 +415,8 @@ function ChatPanelInner({
                 </div>
                 <div className="p-4 space-y-4">
                   <div className="space-y-2">
-                    <label className="text-xs font-medium text-muted-foreground">Gemini API Key</label>
-                    <Input type="password" value={geminiApiKey} onChange={(e) => setGeminiApiKey(e.target.value)} className="bg-background" />
+                    <label className="text-xs font-medium text-muted-foreground">API Key (Gemini or Groq)</label>
+                    <Input type="password" placeholder="AIza... or gsk_..." value={geminiApiKey} onChange={(e) => setGeminiApiKey(e.target.value)} className="bg-background" />
                   </div>
 
                   <div className="space-y-2">
