@@ -65,6 +65,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </nav>
           </div>
           <div className="flex items-center gap-2">
+            <ChatHistoryButton />
             <NotificationsDropdown />
             <div className="w-px h-4 bg-white/10 mx-1" />
             <Button
