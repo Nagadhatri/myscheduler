@@ -65,9 +65,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </nav>
           </div>
           <div className="flex items-center gap-2">
-            <BookingHistoryButton />
-            <ChatHistoryButton />
-            <ReportsPanel />
             <NotificationsDropdown />
             <div className="w-px h-4 bg-white/10 mx-1" />
             <Button
@@ -77,7 +74,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               className="gap-2 text-muted-foreground hover:text-white hover:bg-white/5"
             >
               <LogOut className="w-4 h-4" />
-              <span className="hidden sm:inline">Logout</span>
+              <span className="hidden sm:inline">Sign Out</span>
             </Button>
           </div>
         </header>

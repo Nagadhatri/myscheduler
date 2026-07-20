@@ -125,12 +125,10 @@ export default function ReportsPanel() {
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
-      <PopoverTrigger render={
-        <Button variant="ghost" size="sm" className="gap-2 text-xs hover:bg-white/5">
-          <FileText className="w-4 h-4" />
-          <span className="hidden sm:inline">Reports</span>
-        </Button>
-      } />
+      <PopoverTrigger className="w-full flex items-center gap-2 justify-start bg-card/50 backdrop-blur-xl border border-white/5 hover:bg-white/5 h-12 px-4 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50">
+        <FileText className="w-4 h-4 text-primary" />
+        <span>Generate AI Report</span>
+      </PopoverTrigger>
       <PopoverContent align="end" className="w-[450px] p-0 border-white/10 bg-card/95 backdrop-blur-xl">
         <div className="px-4 py-3 border-b border-white/5 flex items-center justify-between">
           <h4 className="font-semibold text-sm">AI Reports</h4>

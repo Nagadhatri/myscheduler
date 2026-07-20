@@ -2,38 +2,50 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { format } from "date-fns";
-import { Calendar, User, Clock, CheckCircle, XCircle, AlertCircle } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { Calendar, User, Clock, CheckCircle, XCircle, AlertCircle, FileText, Download } from "lucide-react";
+
+import ReactMarkdown from "react-markdown";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 export function ReportChart({ data }: { data: any }) {
-  if (!data) return null;
+  if (!data || !data.reportContent) return null;
 
-  // Extremely basic chart parsing logic - we assume the LLM sends structured data 
-  // or we pass raw tool arguments here.
-  const chartData = [
-    { name: "Accepted", count: 12 },
-    { name: "Pending", count: 5 },
-    { name: "Rejected", count: 2 },
-  ];
+  const handleDownloadPDF = async () => {
+    const element = document.getElementById(`chat-report-${data.reportId || "1"}`);
+    if (!element) return;
+    try {
+      const html2pdf = (await import("html2pdf.js")).default;
+      const opt = {
+        margin: 0.5,
+        filename: `AI_Report_${new Date().getTime()}.pdf`,
+        image: { type: 'jpeg' as const, quality: 0.98 },
+        html2canvas: { scale: 2 },
+        jsPDF: { unit: 'in' as const, format: 'letter' as const, orientation: 'portrait' as const }
+      };
+      html2pdf().set(opt).from(element).save();
+      toast.success("PDF exported successfully!");
+    } catch (e: any) {
+      toast.error("Failed to export PDF.");
+    }
+  };
 
   return (
     <Card className="w-full bg-card/90 border-white/10 mt-2">
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm flex items-center gap-2">
-          <BarChart className="w-4 h-4 text-primary" />
-          Analytics Report
+        <CardTitle className="text-sm flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <FileText className="w-4 h-4 text-primary" />
+            Analytics Report
+          </div>
+          <Button variant="outline" size="sm" className="h-7 text-xs" onClick={handleDownloadPDF}>
+            <Download className="w-3.5 h-3.5 mr-1" /> PDF
+          </Button>
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="h-40 w-full mt-2">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData}>
-              <XAxis dataKey="name" fontSize={10} stroke="#888888" tickLine={false} axisLine={false} />
-              <YAxis fontSize={10} stroke="#888888" tickLine={false} axisLine={false} tickFormatter={(val) => `${val}`} />
-              <Tooltip cursor={{ fill: "transparent" }} contentStyle={{ backgroundColor: "#1f2937", border: "none", borderRadius: "8px", fontSize: "12px" }} />
-              <Bar dataKey="count" fill="currentColor" className="fill-primary" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+        <div id={`chat-report-${data.reportId || "1"}`} className="text-sm markdown-body prose prose-invert max-h-60 overflow-y-auto">
+          <ReactMarkdown>{data.reportContent}</ReactMarkdown>
         </div>
       </CardContent>
     </Card>

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarDays, Users, Sparkles, ArrowRight, Shield, UserCheck, Settings } from "lucide-react";
+import { CalendarDays, Sparkles, ArrowRight, CheckCircle2 } from "lucide-react";
 import ChatPanel from "@/components/chatbot/ChatPanel";
 
 export default function LandingPage() {
@@ -19,81 +19,69 @@ export default function LandingPage() {
           </div>
           <div className="text-lg font-bold tracking-tight gradient-text">MyScheduler</div>
         </div>
-        <div className="flex items-center gap-3">
-          <Link href="/login" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+      </header>
+
+      {/* Main Content Section */}
+      <main id="main-content" className="relative z-10 flex-grow flex flex-col items-center justify-center px-6 py-12 max-w-6xl mx-auto w-full">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 w-full items-center">
+          
+          {/* Left Side: Information */}
+          <div className="space-y-8">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-xs text-primary">
+              <Sparkles className="w-3 h-3" />
+              Your Intelligent Scheduling Assistant
+            </div>
+            
+            <h1 className="text-4xl md:text-6xl font-bold tracking-tight leading-tight">
+              What is <span className="gradient-text">MyScheduler?</span>
+            </h1>
+            
+            <p className="text-lg text-muted-foreground max-w-lg leading-relaxed">
+              MyScheduler is an advanced scheduling platform that effortlessly aligns your calendar with your professional network. Built for modern teams and independent professionals.
+            </p>
+
+            <div className="space-y-4">
+              <h3 className="text-xl font-semibold tracking-tight text-foreground/90">Why it's great:</h3>
+              <ul className="space-y-3">
+                {[
+                  "AI-Powered Chatbot to manage your bookings instantly",
+                  "Automated smart summaries & AI generated meeting reports",
+                  "Seamlessly connect and share your availability with others",
+                  "Real-time notifications and conflict resolution"
+                ].map((feature, i) => (
+                  <li key={i} className="flex items-start gap-3">
+                    <CheckCircle2 className="w-5 h-5 text-primary mt-0.5 shrink-0" />
+                    <span className="text-muted-foreground">{feature}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+
+          {/* Right Side: Empty or simple graphic (removed optional button as per feedback) */}
+          <div className="hidden lg:flex justify-center relative">
+            <div className="w-full aspect-square max-w-md relative glass-card border border-white/5 rounded-3xl p-8 flex items-center justify-center bg-card/20 backdrop-blur-sm">
+              <div className="absolute inset-0 bg-gradient-to-tr from-primary/10 to-[var(--status-upcoming)]/10 rounded-3xl opacity-50 pointer-events-none" />
+              <div className="text-center space-y-4 relative z-10">
+                <CalendarDays className="w-24 h-24 text-primary/80 mx-auto" strokeWidth={1} />
+                <p className="text-2xl font-light text-foreground/70 tracking-widest uppercase">Take Control</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom Section: Sign In and Get Started */}
+        <div className="w-full mt-16 pt-8 border-t border-white/5 flex flex-col sm:flex-row items-center justify-center gap-4">
+          <Link href="/login" className="w-full sm:w-auto px-8 py-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 font-semibold text-sm transition-all duration-300 text-center">
             Sign In
           </Link>
           <Link
             href="/signup"
-            className="px-4 py-2 text-sm font-medium rounded-lg bg-primary text-primary-foreground glow-primary hover:opacity-90 transition-opacity"
+            className="w-full sm:w-auto px-8 py-3 rounded-xl bg-primary text-primary-foreground glow-primary hover:opacity-90 font-semibold text-sm transition-all duration-300 flex items-center justify-center gap-2"
           >
             Get Started
+            <ArrowRight className="w-4 h-4" />
           </Link>
-        </div>
-      </header>
-
-      {/* Main Hero & Selection Section */}
-      <main id="main-content" className="relative z-10 flex-grow flex flex-col items-center justify-center px-6 py-12 max-w-5xl mx-auto w-full">
-        <div className="text-center mb-12 space-y-4">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-xs text-primary mb-2">
-            <Sparkles className="w-3 h-3" />
-            Welcome to MyScheduler
-          </div>
-          <h1 className="text-3xl md:text-5xl font-bold tracking-tight leading-tight">
-            Select Your <span className="gradient-text">Portal</span>
-          </h1>
-          <p className="text-sm md:text-base text-muted-foreground max-w-lg mx-auto">
-            Choose how you would like to proceed with MyScheduler today
-          </p>
-        </div>
-
-        {/* Portals Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-4xl">
-          {/* Visitor Card */}
-          <div className="glass-card border border-white/5 rounded-2xl p-8 space-y-6 flex flex-col justify-between hover:border-primary/20 hover:shadow-primary/5 hover:shadow-xl transition-all duration-300 group">
-            <div className="space-y-4">
-              <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center group-hover:scale-110 transition-transform">
-                <Users className="w-7 h-7 text-primary animate-pulse-glow" />
-              </div>
-              <div className="space-y-2">
-                <h3 className="text-xl font-bold tracking-tight">I am a Visitor</h3>
-                <p className="text-xs font-semibold text-primary/80 uppercase tracking-wider">Book Meetings & Track Requests</p>
-              </div>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                Search for scheduling profiles, check availability in real time, and submit booking requests. 
-                <span className="text-primary font-medium block mt-2">
-                  🌍 Open to everyone! Non-acquaintances can also request bookings — the owner will be notified to approve.
-                </span>
-              </p>
-            </div>
-            <Link href="/visit" className="pt-4 block w-full py-3.5 rounded-xl bg-white/5 border border-white/10 hover:bg-primary hover:text-primary-foreground hover:border-primary hover:glow-primary font-semibold text-sm transition-all duration-300 flex items-center justify-center gap-2">
-              Enter Visitor Portal
-              <ArrowRight className="w-4 h-4" />
-            </Link>
-          </div>
-
-          {/* Owner Card */}
-          <div className="glass-card border border-white/5 rounded-2xl p-8 space-y-6 flex flex-col justify-between hover:border-[var(--status-upcoming)]/20 hover:shadow-[var(--status-upcoming)]/5 hover:shadow-xl transition-all duration-300 group">
-            <div className="space-y-4">
-              <div className="w-14 h-14 rounded-2xl bg-[var(--status-upcoming)]/10 flex items-center justify-center group-hover:scale-110 transition-transform">
-                <Settings className="w-7 h-7 text-[var(--status-upcoming)]" />
-              </div>
-              <div className="space-y-2">
-                <h3 className="text-xl font-bold tracking-tight">I am an Owner</h3>
-                <p className="text-xs font-semibold text-[var(--status-upcoming)] uppercase tracking-wider">Manage Schedule & Bookings</p>
-              </div>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                Manage your available slots, review pending requests with custom status badges, and reschedule bookings.
-                <span className="text-[var(--status-upcoming)] font-medium block mt-2">
-                  📧 Notifications: Rescheduling a meeting automatically notifies visitors with rearranging options.
-                </span>
-              </p>
-            </div>
-            <Link href="/dashboard" className="pt-4 block w-full py-3.5 rounded-xl bg-white/5 border border-white/10 hover:bg-[var(--status-upcoming)] hover:text-white hover:border-[var(--status-upcoming)] hover:shadow-[var(--status-upcoming)]/20 hover:shadow-lg font-semibold text-sm transition-all duration-300 flex items-center justify-center gap-2">
-              Enter Owner Dashboard
-              <ArrowRight className="w-4 h-4" />
-            </Link>
-          </div>
         </div>
       </main>
 
@@ -102,6 +90,9 @@ export default function LandingPage() {
         Built with ❤️ using <a href="https://nextjs.org" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Next.js</a>, <a href="https://supabase.com" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Supabase</a> & <a href="https://gemini.google.com" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Gemini AI</a><br/>
         <span className="text-xs opacity-70 mt-2 block">© 2026 MyScheduler. All rights reserved.</span>
       </footer>
+      
+      {/* We keep the ChatPanel but it should be noted it's now context="visitor" without a specific owner. 
+          The chatbot can answer general queries about the app. */}
       <ChatPanel context="visitor" />
     </div>
   );

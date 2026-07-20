@@ -1,6 +1,7 @@
 import { streamText, tool } from 'ai';
 import { createGroq } from '@ai-sdk/groq';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { createOpenAI } from '@ai-sdk/openai';
 import { z } from 'zod';
 import { NextResponse } from 'next/server';
 
@@ -147,25 +148,23 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { messages, context, urlPath, clientData } = body;
     
-    // We will support both Groq and Gemini. 
-    // If the key starts with "gsk_", it's a Groq key. Otherwise, it's Gemini.
-    const customApiKey = req.headers.get("x-gemini-api-key") || process.env.GROQ_API_KEY || process.env.GEMINI_API_KEY;
-    
-    if (!customApiKey) {
-      return NextResponse.json({ error: "An API key (Groq or Gemini) is required" }, { status: 401 });
-    }
+    const envKeys = [
+      process.env.GEMINI_API_KEY,
+      process.env.GEMINI_API_KEY_1,
+      process.env.GEMINI_API_KEY_2,
+      process.env.GEMINI_API_KEY_3,
+      process.env.GEMINI_API_KEY_4,
+      process.env.GEMINI_API_KEY_5
+    ].filter(Boolean) as string[];
 
-    const isGroq = customApiKey.startsWith("gsk_");
+    const customApiKey = req.headers.get("x-gemini-api-key");
+    const availableKeys = customApiKey ? [customApiKey] : (envKeys.length > 0 ? envKeys : ['none']);
     
     let modelProvider;
-    if (isGroq) {
-      const groq = createGroq({ apiKey: customApiKey });
-      modelProvider = groq("llama-3.1-70b-versatile");
-    } else {
-      const google = createGoogleGenerativeAI({ apiKey: customApiKey });
-      modelProvider = google("gemini-2.0-flash-lite-preview-02-05");
-    }
-
+    let result;
+    let lastError;
+    
+    // We will support both Groq and Gemini. 
     const PLATFORM_KNOWLEDGE = `# MyScheduler Platform Knowledge
 ## What is MyScheduler?
 MyScheduler is an advanced Next.js & Supabase scheduling application. It supports distinct profiles, social connections, and direct slot booking.
@@ -181,7 +180,7 @@ You are the personal AI Assistant (Smart Navigator) for the logged-in owner.
 - You can manage their calendar (add/delete/reschedule slots).
 - You can view pending bookings and accept/reject them.
 - You can search for other people to connect with.
-- You can generate analytical reports.
+- You can generate analytical reports (PDF download will be automatically provided by UI).
 - You are autonomous: use your tools to accomplish tasks, and immediately use follow-up tools if necessary.
 - **Language Support**: You must understand and fluently respond in the language the user speaks. If the user uses "Tenglish" (Telugu words written in English alphabet) or any other regional language, you must respond warmly and fluently in the same language or script.
 - **Action-Tags**: You can trigger navigation in the app by outputting exactly \`<ACTION>navigate:/path</ACTION>\` in your response. For example: \`<ACTION>navigate:/dashboard</ACTION>\`. Always do this when the user asks to go to a specific page.
@@ -192,6 +191,7 @@ You are the personal AI Assistant (Smart Navigator) for the logged-in owner.
 You are an intelligent booking assistant representing the owner of this page.
 - The visitor wants to book a time with the owner or find out more about them.
 - Look up available slots and help the visitor submit a booking request.
+- When booking, you only need to ask for the **time** and **reason**. For name and email, if not provided, just use "Guest User" and "guest@example.com" or ask the user to sign in.
 - Ensure all dates are in YYYY-MM-DD format when calling tools.
 - **Language Support**: You must understand and fluently respond in the language the user speaks. If the user uses "Tenglish" (Telugu words written in English alphabet) or any other regional language, you must respond warmly and fluently in the same language or script.
 - **Action-Tags**: You can trigger navigation in the app by outputting exactly \`<ACTION>navigate:/path</ACTION>\` in your response. For example: \`<ACTION>navigate:/login</ACTION>\`. Do this when you want to redirect the user.
@@ -210,15 +210,44 @@ Active Screen Data: ${JSON.stringify(clientData || {})}
     const systemInstruction = baseSystemInstruction + "\n\n" + ragContext;
     const activeTools = context === "owner" ? OWNER_TOOLS : VISITOR_TOOLS;
 
-    // Use AI SDK streamText
-    const result = streamText({
-      model: modelProvider,
-      messages,
-      system: systemInstruction,
-      tools: activeTools as any, // Cast tools as any to fix Zod typing issues with old Vercel AI SDK vs new Zod
-    });
+    for (const key of availableKeys) {
+      try {
+        if (key === 'none') {
+          // Fallback to completely free, no-auth Pollinations endpoint
+          const pollinations = createOpenAI({ baseURL: 'https://text.pollinations.ai/openai/', apiKey: 'none' });
+          modelProvider = pollinations("openai");
+        } else {
+          const isGroq = key.startsWith("gsk_");
+          if (isGroq) {
+            const groq = createGroq({ apiKey: key });
+            modelProvider = groq("llama-3.1-70b-versatile");
+          } else {
+            const google = createGoogleGenerativeAI({ apiKey: key });
+            modelProvider = google("gemini-3.1-flash"); // Set to Gemini Flash 3.1
+          }
+        }
+        
+        result = streamText({
+          model: modelProvider,
+          messages,
+          system: systemInstruction,
+          tools: activeTools as any, // Cast tools as any to fix Zod typing issues with old Vercel AI SDK vs new Zod
+        });
+        
+        break; // If no sync error, assume this key works. Vercel AI SDK throws sync if key is immediately rejected.
+      } catch (err) {
+        lastError = err;
+        console.warn("API Key failed, trying next fallback...", err);
+      }
+    }
+    
+    if (!result) {
+      throw lastError || new Error("All API keys failed.");
+    }
 
     return result.toUIMessageStreamResponse();
+
+
   } catch (error: any) {
     console.error("Chat API Error:", error);
     return NextResponse.json({ error: error.message || "Something went wrong" }, { status: 500 });

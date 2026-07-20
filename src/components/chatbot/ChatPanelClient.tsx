@@ -72,6 +72,9 @@ function ChatPanelInner({
     setInput("");
   };
 
+  // Load messages from localStorage on mount
+  const [hasLoaded, setHasLoaded] = useState(false);
+
   const { messages, sendMessage, status, addToolResult, setMessages } = useChat({
     transport: new DefaultChatTransport({
       api: '/api/chat',
@@ -102,6 +105,30 @@ function ChatPanelInner({
       }]);
     },
   });
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem(`chat_history_${context}`);
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (parsed && Array.isArray(parsed) && parsed.length > 0) {
+            setMessages(parsed);
+          }
+        } catch (e) {
+          console.error("Failed to parse chat history");
+        }
+      }
+      setHasLoaded(true);
+    }
+  }, [context, setMessages]);
+
+  // Save to localStorage whenever messages change
+  useEffect(() => {
+    if (hasLoaded && typeof window !== 'undefined') {
+      localStorage.setItem(`chat_history_${context}`, JSON.stringify(messages));
+    }
+  }, [messages, hasLoaded, context]);
 
   const isLoading = status === 'streaming' || status === 'submitted';
 
@@ -273,8 +300,14 @@ function ChatPanelInner({
         if (error) throw error;
         responseObj = { success: true, message: `Password reset link has been sent to ${args.email}.` };
       } else if (name === "generateReport") {
-        // Return dummy payload for the chart to render properly
-        responseObj = { success: true, message: "Report generated.", data: [] };
+        const res = await fetch("/api/reports", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ reportType: args.reportType, dateFrom: args.dateFrom, dateTo: args.dateTo }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to generate report");
+        responseObj = { success: true, message: "Report generated.", reportContent: data.report?.content, reportId: Date.now() };
       }
     } catch (err: any) {
       responseObj = { success: false, error: err.message };
@@ -366,6 +399,7 @@ function ChatPanelInner({
   const clearChat = () => {
     setMessages([]);
     setPendingCall(null);
+    localStorage.removeItem(`chat_history_${context}`);
   };
 
   return (
