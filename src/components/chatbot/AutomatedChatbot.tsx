@@ -18,7 +18,8 @@ type ChatStep =
   | 'CANCEL_EMAIL'
   | 'CANCEL_CONFIRM'
   | 'VIEW_SCHEDULE'
-  | 'VIEW_EMAIL';
+  | 'VIEW_EMAIL'
+  | 'BOOKING_VISITOR_EMAIL';
 
 interface Message {
   id: string;
@@ -36,7 +37,7 @@ export default function AutomatedChatbot() {
   const supabase = createClient();
 
   // --- Temporary State for Flows ---
-  const [bookingData, setBookingData] = useState({ date: '', time: '', email: '', name: '', userId: '' });
+  const [bookingData, setBookingData] = useState({ date: '', time: '', email: '', name: '', userId: '', visitorEmail: '' });
   const [cancelData, setCancelData] = useState({ email: '', bookings: [] as any[], selectedBookingId: '' });
   const [viewData, setViewData] = useState({ email: '', bookings: [] as any[] });
 
@@ -51,7 +52,7 @@ export default function AutomatedChatbot() {
 
   const resetFlow = () => {
     setCurrentStep('INITIAL');
-    setBookingData({ date: '', time: '', email: '', name: '', userId: '' });
+    setBookingData({ date: '', time: '', email: '', name: '', userId: '', visitorEmail: '' });
     setCancelData({ email: '', bookings: [], selectedBookingId: '' });
     setViewData({ email: '', bookings: [] });
     addMessage('bot', 'Is there anything else I can help you with?');
@@ -107,8 +108,20 @@ export default function AutomatedChatbot() {
 
         case 'BOOKING_NAME':
             setBookingData(prev => ({ ...prev, name: value }));
-            addMessage('bot', `Confirm booking for ${bookingData.date} at ${bookingData.time} as ${value}?`);
-            setCurrentStep('BOOKING_CONFIRM');
+            addMessage('bot', `Please provide your email address:`);
+            setCurrentStep('BOOKING_VISITOR_EMAIL');
+            break;
+
+        case 'BOOKING_VISITOR_EMAIL':
+            if (value.includes('@')) {
+               setBookingData(prev => ({ ...prev, visitorEmail: value.trim() }));
+               addMessage('bot', `Confirm booking for ${bookingData.date} at ${bookingData.time} as ${bookingData.name} (${value.trim()})?`);
+               setCurrentStep('BOOKING_CONFIRM');
+            } else if (value.toLowerCase() === 'cancel') {
+               resetFlow();
+            } else {
+               addMessage('bot', 'Please provide a valid email address.');
+            }
             break;
 
         case 'BOOKING_CONFIRM':
@@ -128,7 +141,7 @@ export default function AutomatedChatbot() {
                   startTime: `${bookingData.time}:00`,
                   endTime: `${endH}:00:00`,
                   name: bookingData.name,
-                  email: "automated@bot.com", // We didn't ask visitor email for simplicity, but we could
+                  email: bookingData.visitorEmail,
                   description: "Booked via Automated Chatbot",
                 }),
               });
@@ -250,6 +263,7 @@ export default function AutomatedChatbot() {
       case 'CANCEL_EMAIL':
       case 'VIEW_EMAIL':
       case 'BOOKING_NAME':
+      case 'BOOKING_VISITOR_EMAIL':
           return (
               <div className="flex gap-2 mt-2">
                  <input type="text" id="text-input" placeholder="Type here..." className="border border-white/10 bg-black/40 rounded-lg px-3 py-1.5 text-xs text-white w-full outline-none focus:border-primary/50" 
