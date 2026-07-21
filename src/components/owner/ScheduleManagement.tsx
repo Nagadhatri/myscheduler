@@ -29,6 +29,10 @@ import { Schedule, ScheduleCategory, ScheduleStatus } from "@/types";
 import { Trash2, Edit, Plus, Clock, ListChecks, RefreshCw, FileText, Users, BarChart3, Tent, BookOpen, Pin } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import MeetingMinutesDialog from "./MeetingMinutesDialog";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 
 const getStatusColor = (status: ScheduleStatus) => {
   switch (status) {
@@ -60,23 +64,38 @@ const getCategoryIcon = (cat: string) => {
   }
 };
 
+const scheduleSchema = z.object({
+  title: z.string().min(2, "Title is required"),
+  category: z.string(),
+  startTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Invalid time"),
+  endTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Invalid time"),
+  description: z.string().optional(),
+  status: z.string(),
+}).refine(data => data.startTime < data.endTime, {
+  message: "Start time must be before end time",
+  path: ["endTime"],
+});
+
+type ScheduleFormData = z.infer<typeof scheduleSchema>;
+
+const rescheduleSchema = z.object({
+  newDate: z.string().min(1, "Date is required"),
+  newStartTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Invalid time"),
+  newEndTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Invalid time"),
+  reason: z.string().min(5, "Reason is required (min 5 chars)"),
+}).refine(data => data.newStartTime < data.newEndTime, {
+  message: "Start time must be before end time",
+  path: ["newEndTime"],
+});
+type RescheduleFormData = z.infer<typeof rescheduleSchema>;
+
 export default function ScheduleManagement() {
-  const { selectedDate, schedules, fetchSchedules } = useDashboard();
+  const { selectedDate, schedules, fetchSchedules, loadingSchedules } = useDashboard();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  const [title, setTitle] = useState("");
-  const [category, setCategory] = useState<ScheduleCategory>("Meeting");
-  const [description, setDescription] = useState("");
-  const [startTime, setStartTime] = useState("");
-  const [endTime, setEndTime] = useState("");
-  const [status, setStatus] = useState<ScheduleStatus>("Upcoming");
   const [rescheduleId, setRescheduleId] = useState<string | null>(null);
-  const [rescheduleDate, setRescheduleDate] = useState("");
-  const [rescheduleStart, setRescheduleStart] = useState("");
-  const [rescheduleEnd, setRescheduleEnd] = useState("");
   const [rescheduleDialogOpen, setRescheduleDialogOpen] = useState(false);
-  const [rescheduleReason, setRescheduleReason] = useState("");
   const [loading, setLoading] = useState(false);
 
   // MoM state
@@ -84,43 +103,53 @@ export default function ScheduleManagement() {
   const [selectedMomSchedule, setSelectedMomSchedule] = useState<Schedule | null>(null);
 
   const supabase = createClient();
-
   const formattedDate = format(selectedDate, "yyyy-MM-dd");
   const daySchedules = schedules.filter((s) => s.date === formattedDate);
 
+  const { register, handleSubmit, reset, control, setValue, formState: { errors } } = useForm<ScheduleFormData>({
+    resolver: zodResolver(scheduleSchema),
+    defaultValues: {
+      title: "",
+      category: "Meeting",
+      startTime: "",
+      endTime: "",
+      description: "",
+      status: "Upcoming"
+    }
+  });
+
+  const { register: registerRe, handleSubmit: handleSubmitRe, reset: resetRe, formState: { errors: errorsRe } } = useForm<RescheduleFormData>({
+    resolver: zodResolver(rescheduleSchema),
+    defaultValues: {
+      newDate: "",
+      newStartTime: "",
+      newEndTime: "",
+      reason: ""
+    }
+  });
+
   useEffect(() => {
     const handleOpenAddSlot = () => {
-      resetForm();
+      setEditingId(null);
+      reset();
       setIsDialogOpen(true);
     };
     window.addEventListener("open-add-slot", handleOpenAddSlot);
     return () => window.removeEventListener("open-add-slot", handleOpenAddSlot);
-  }, []);
-
-  const resetForm = () => {
-    setEditingId(null);
-    setTitle("");
-    setCategory("Meeting");
-    setDescription("");
-    setStartTime("");
-    setEndTime("");
-    setStatus("Upcoming");
-  };
+  }, [reset]);
 
   const handleEdit = (s: Schedule) => {
     setEditingId(s.id);
-    setTitle(s.title);
-    setCategory(s.category);
-    setDescription(s.description || "");
-    setStartTime(s.start_time.slice(0, 5));
-    setEndTime(s.end_time.slice(0, 5));
-    setStatus(s.status);
+    setValue("title", s.title);
+    setValue("category", s.category);
+    setValue("description", s.description || "");
+    setValue("startTime", s.start_time.slice(0, 5));
+    setValue("endTime", s.end_time.slice(0, 5));
+    setValue("status", s.status);
     setIsDialogOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this slot?")) return;
-
+  const executeDelete = async (id: string) => {
     const { error } = await supabase.from("schedules").delete().eq("id", id);
     if (error) {
       toast.error(error.message);
@@ -130,8 +159,20 @@ export default function ScheduleManagement() {
     }
   };
 
-  const handleReschedule = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleDeleteClick = (id: string) => {
+    toast("Are you sure you want to delete this slot?", {
+        action: {
+            label: "Delete",
+            onClick: () => executeDelete(id),
+        },
+        cancel: {
+            label: "Cancel",
+            onClick: () => {}
+        }
+    });
+  };
+
+  const handleReschedule = async (data: RescheduleFormData) => {
     if (!rescheduleId) return;
     setLoading(true);
 
@@ -141,22 +182,22 @@ export default function ScheduleManagement() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           slotId: rescheduleId,
-          newDate: rescheduleDate,
-          newStartTime: rescheduleStart,
-          newEndTime: rescheduleEnd,
-          reason: rescheduleReason || "No reason provided by the host.",
+          newDate: data.newDate,
+          newStartTime: data.newStartTime,
+          newEndTime: data.newEndTime,
+          reason: data.reason,
         }),
       });
 
-      const data = await res.json();
+      const resData = await res.json();
       if (res.status !== 200) {
-        throw new Error(data.error || "Failed to reschedule.");
+        throw new Error(resData.error || "Failed to reschedule.");
       }
 
-      toast.success(data.message || "Meeting rescheduled! ✅");
+      toast.success(resData.message || "Meeting rescheduled! ✅");
       setRescheduleDialogOpen(false);
       setRescheduleId(null);
-      setRescheduleReason("");
+      resetRe();
       fetchSchedules();
     } catch (err: any) {
       toast.error(err.message);
@@ -165,18 +206,17 @@ export default function ScheduleManagement() {
     }
   };
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSave = async (data: ScheduleFormData) => {
     setLoading(true);
 
     const payload = {
-      title,
-      category,
-      description,
+      title: data.title,
+      category: data.category as ScheduleCategory,
+      description: data.description,
       date: formattedDate,
-      start_time: startTime + ":00",
-      end_time: endTime + ":00",
-      status,
+      start_time: data.startTime + ":00",
+      end_time: data.endTime + ":00",
+      status: data.status as ScheduleStatus,
     };
 
     let error;
@@ -209,7 +249,7 @@ export default function ScheduleManagement() {
     } else {
       toast.success(editingId ? "Schedule updated" : "Schedule created");
       setIsDialogOpen(false);
-      resetForm();
+      reset();
       fetchSchedules();
     }
   };
@@ -225,105 +265,86 @@ export default function ScheduleManagement() {
           open={isDialogOpen}
           onOpenChange={(open) => {
             setIsDialogOpen(open);
-            if (!open) resetForm();
+            if (!open) {
+                setEditingId(null);
+                reset();
+            }
           }}
         >
-          <DialogTrigger
-            render={
-              <Button size="sm" className="gap-1.5 glow-primary text-xs">
-                <Plus className="w-3.5 h-3.5" />
-                Add Slot
-              </Button>
-            }
-          >
-            Add Slot
-          </DialogTrigger>
+          <DialogTrigger render={
+            <Button size="sm" className="gap-1.5 glow-primary text-xs">
+              <Plus className="w-3.5 h-3.5" />
+              Add Slot
+            </Button>
+          } />
           <DialogContent>
             <DialogHeader>
               <DialogTitle>{editingId ? "Edit Slot" : "Add Slot"}</DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleSave} className="space-y-4">
+            <form onSubmit={handleSubmit(handleSave)} className="space-y-4">
               <div className="space-y-2">
                 <Label>Title</Label>
-                <Input
-                  required
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                />
+                <Input {...register("title")} />
+                {errors.title && <p className="text-red-500 text-xs mt-1">{errors.title.message}</p>}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Start Time</Label>
-                  <Input
-                    type="time"
-                    required
-                    value={startTime}
-                    onChange={(e) => setStartTime(e.target.value)}
-                  />
+                  <Input type="time" {...register("startTime")} />
+                  {errors.startTime && <p className="text-red-500 text-xs mt-1">{errors.startTime.message}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label>End Time</Label>
-                  <Input
-                    type="time"
-                    required
-                    value={endTime}
-                    onChange={(e) => setEndTime(e.target.value)}
-                  />
+                  <Input type="time" {...register("endTime")} />
+                  {errors.endTime && <p className="text-red-500 text-xs mt-1">{errors.endTime.message}</p>}
                 </div>
               </div>
               <div className="space-y-2">
                 <Label>Category</Label>
-                  <Select
-                    value={category}
-                    onValueChange={(v) => { if (v) setCategory(v as ScheduleCategory) }}
-                  >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Meeting">
-                      <div className="flex items-center gap-2"><Users className="w-4 h-4 text-blue-400"/> Meeting</div>
-                    </SelectItem>
-                    <SelectItem value="Presentation">
-                      <div className="flex items-center gap-2"><BarChart3 className="w-4 h-4 text-purple-400"/> Presentation</div>
-                    </SelectItem>
-                    <SelectItem value="Event Participation">
-                      <div className="flex items-center gap-2"><Tent className="w-4 h-4 text-orange-400"/> Event Participation</div>
-                    </SelectItem>
-                    <SelectItem value="Learning">
-                      <div className="flex items-center gap-2"><BookOpen className="w-4 h-4 text-green-400"/> Learning</div>
-                    </SelectItem>
-                    <SelectItem value="Other">
-                      <div className="flex items-center gap-2"><Pin className="w-4 h-4 text-zinc-400"/> Other</div>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
+                <Controller
+                  control={control}
+                  name="category"
+                  render={({ field }) => (
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Meeting">Meeting</SelectItem>
+                        <SelectItem value="Presentation">Presentation</SelectItem>
+                        <SelectItem value="Event Participation">Event</SelectItem>
+                        <SelectItem value="Learning">Learning</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
               </div>
               {editingId && (
                 <div className="space-y-2">
                   <Label>Status</Label>
-                  <Select
-                    value={status}
-                    onValueChange={(v) => { if (v) setStatus(v as ScheduleStatus) }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Upcoming">Upcoming</SelectItem>
-                      <SelectItem value="Completed">Completed</SelectItem>
-                      <SelectItem value="Rescheduled">Rescheduled</SelectItem>
-                      <SelectItem value="Cancelled">Cancelled</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Controller
+                      control={control}
+                      name="status"
+                      render={({ field }) => (
+                        <Select value={field.value} onValueChange={field.onChange}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Upcoming">Upcoming</SelectItem>
+                            <SelectItem value="Completed">Completed</SelectItem>
+                            <SelectItem value="Rescheduled">Rescheduled</SelectItem>
+                            <SelectItem value="Cancelled">Cancelled</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
+                  />
                 </div>
               )}
               <div className="space-y-2">
                 <Label>Description</Label>
-                <Input
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                />
+                <Input {...register("description")} />
               </div>
               <DialogFooter>
                 <Button type="submit" disabled={loading} className="glow-primary">
@@ -336,7 +357,13 @@ export default function ScheduleManagement() {
       </CardHeader>
       <CardContent className="p-0">
         <ScrollArea className="h-[500px] px-6 py-3">
-          {daySchedules.length === 0 ? (
+          {loadingSchedules ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map(i => (
+                <Skeleton key={i} className="h-[80px] w-full rounded-xl bg-white/5" />
+              ))}
+            </div>
+          ) : daySchedules.length === 0 ? (
             <div className="text-center py-16 text-muted-foreground">
               <Clock className="w-10 h-10 mx-auto mb-3 opacity-30" />
               <p className="text-sm">No schedules for this date.</p>
@@ -382,9 +409,12 @@ export default function ScheduleManagement() {
                           title="Reschedule"
                           onClick={() => {
                             setRescheduleId(s.id);
-                            setRescheduleDate(s.date);
-                            setRescheduleStart(s.start_time.slice(0,5));
-                            setRescheduleEnd(s.end_time.slice(0,5));
+                            resetRe({
+                                newDate: s.date,
+                                newStartTime: s.start_time.slice(0,5),
+                                newEndTime: s.end_time.slice(0,5),
+                                reason: ""
+                            });
                             setRescheduleDialogOpen(true);
                           }}
                         >
@@ -410,7 +440,7 @@ export default function ScheduleManagement() {
                         size="icon"
                         className="h-7 w-7 hover:bg-red-500/10"
                         title="Delete"
-                        onClick={() => handleDelete(s.id)}
+                        onClick={() => handleDeleteClick(s.id)}
                       >
                         <Trash2 className="h-3.5 w-3.5 text-destructive" />
                       </Button>
@@ -442,30 +472,28 @@ export default function ScheduleManagement() {
               Reschedule Meeting
             </DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleReschedule} className="space-y-4">
+          <form onSubmit={handleSubmitRe(handleReschedule)} className="space-y-4">
             <div className="space-y-2">
               <Label>New Date</Label>
-              <Input type="date" required value={rescheduleDate} onChange={(e) => setRescheduleDate(e.target.value)} />
+              <Input type="date" {...registerRe("newDate")} />
+              {errorsRe.newDate && <p className="text-red-500 text-xs mt-1">{errorsRe.newDate.message}</p>}
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>New Start Time</Label>
-                <Input type="time" required value={rescheduleStart} onChange={(e) => setRescheduleStart(e.target.value)} />
+                <Input type="time" {...registerRe("newStartTime")} />
+                {errorsRe.newStartTime && <p className="text-red-500 text-xs mt-1">{errorsRe.newStartTime.message}</p>}
               </div>
               <div className="space-y-2">
                 <Label>New End Time</Label>
-                <Input type="time" required value={rescheduleEnd} onChange={(e) => setRescheduleEnd(e.target.value)} />
+                <Input type="time" {...registerRe("newEndTime")} />
+                {errorsRe.newEndTime && <p className="text-red-500 text-xs mt-1">{errorsRe.newEndTime.message}</p>}
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Reason for Rescheduling (Will be emailed to the attendee)</Label>
-              <Input
-                required
-                placeholder="e.g. Urgent conflict came up, double booked..."
-                value={rescheduleReason}
-                onChange={(e) => setRescheduleReason(e.target.value)}
-                className="bg-white/5 border-white/10"
-              />
+              <Label>Reason for Rescheduling</Label>
+              <Input placeholder="e.g. Urgent conflict came up..." className="bg-white/5 border-white/10" {...registerRe("reason")} />
+              {errorsRe.reason && <p className="text-red-500 text-xs mt-1">{errorsRe.reason.message}</p>}
             </div>
             <DialogFooter>
               <Button type="submit" disabled={loading} className="glow-primary">

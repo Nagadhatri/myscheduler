@@ -33,7 +33,6 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import ChatPanel from "@/components/chatbot/ChatPanel";
 
 function generateDaySlots(dateStr: string) {
   const slots = [];
@@ -319,7 +318,7 @@ export default function UserSchedulePage() {
         </div>
 
         {/* Middle Column: Available Slots */}
-        <div className="lg:col-span-5">
+        <div className="lg:col-span-9">
           <Card className="glass-card border-white/5 h-full">
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-lg">
@@ -379,13 +378,6 @@ export default function UserSchedulePage() {
               )}
             </CardContent>
           </Card>
-        </div>
-
-        {/* Right Column: Chatbot */}
-        <div className="lg:col-span-4">
-          <div className="h-[600px]">
-            <ChatPanel context="visitor" targetUserId={userId} mode="inline" />
-          </div>
         </div>
       </div>
 

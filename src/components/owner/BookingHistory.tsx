@@ -11,9 +11,10 @@ import { History, Clock, CheckCircle2, XCircle, AlertCircle, Search, Filter } fr
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function BookingHistory() {
-  const { bookings } = useDashboard();
+  const { bookings, loadingBookings } = useDashboard();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [dateFilter, setDateFilter] = useState("");
@@ -119,7 +120,13 @@ export default function BookingHistory() {
       </CardHeader>
       <CardContent className="p-0">
         <ScrollArea className="h-[250px] px-6 py-2">
-          {historyBookings.length === 0 ? (
+          {loadingBookings ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map(i => (
+                <Skeleton key={i} className="h-[60px] w-full rounded-xl bg-white/5" />
+              ))}
+            </div>
+          ) : historyBookings.length === 0 ? (
             <div className="text-center py-10 text-muted-foreground">
               <History className="w-8 h-8 mx-auto mb-2 opacity-30" />
               <p className="text-sm">No history found</p>

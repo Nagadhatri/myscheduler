@@ -17,7 +17,6 @@ import {
 import { toast } from "sonner";
 import { Lock, Mail, LayoutDashboard, Eye, EyeOff, Loader2, ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import ChatPanel from "@/components/chatbot/ChatPanel";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -185,7 +184,6 @@ export default function LoginPage() {
         <span className="text-xs opacity-70 mt-2 block">© 2026 MyScheduler. All rights reserved.</span>
       </footer>
 
-      <ChatPanel context="visitor" />
     </div>
   );
 }

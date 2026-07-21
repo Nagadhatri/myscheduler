@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { CalendarDays, Sparkles, ArrowRight, CheckCircle2 } from "lucide-react";
-import ChatPanel from "@/components/chatbot/ChatPanel";
 
 export default function LandingPage() {
   return (
@@ -91,9 +90,6 @@ export default function LandingPage() {
         <span className="text-xs opacity-70 mt-2 block">© 2026 MyScheduler. All rights reserved.</span>
       </footer>
       
-      {/* We keep the ChatPanel but it should be noted it's now context="visitor" without a specific owner. 
-          The chatbot can answer general queries about the app. */}
-      <ChatPanel context="visitor" />
     </div>
   );
 }

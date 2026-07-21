@@ -25,7 +25,6 @@ import {
   Sparkles,
   Calendar,
 } from "lucide-react";
-import ChatPanel from "@/components/chatbot/ChatPanel";
 
 export default function PeoplePage() {
   const supabase = createClient();
@@ -390,7 +389,6 @@ export default function PeoplePage() {
           )}
         </CardContent>
       </Card>
-      <ChatPanel context="owner" />
     </div>
   );
 }

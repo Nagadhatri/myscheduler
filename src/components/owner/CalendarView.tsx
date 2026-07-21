@@ -7,11 +7,12 @@ import { CalendarDays, Plus } from "lucide-react";
 import { format } from "date-fns";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export default function CalendarView() {
-  const { selectedDate, setSelectedDate, schedules, fetchSchedules } = useDashboard();
+  const { selectedDate, setSelectedDate, schedules, fetchSchedules, loadingSchedules } = useDashboard();
 
   const datesWithSchedules = schedules.map((s) => {
     const [year, month, day] = s.date.split("-");
@@ -92,23 +93,29 @@ export default function CalendarView() {
           Calendar
         </CardTitle>
       </CardHeader>
-      <CardContent className="flex justify-center pb-4">
-        <Calendar
-          mode="single"
-          selected={selectedDate}
-          onSelect={(date) => {
-            if (date) setSelectedDate(date);
-          }}
-          className="rounded-xl"
-          modifiers={{
-            hasSchedule: datesWithSchedules,
-          }}
-          modifiersClassNames={{
-            hasSchedule:
-              "font-bold text-[var(--status-upcoming)] bg-[var(--status-upcoming)]/10 rounded-full",
-          }}
-          components={{ DayButton: CustomDayButton }}
-        />
+      <CardContent className="flex justify-center pb-4 min-h-[320px]">
+        {loadingSchedules ? (
+          <div className="w-full h-[300px] flex items-center justify-center p-4">
+             <Skeleton className="w-full h-full rounded-xl bg-white/5" />
+          </div>
+        ) : (
+          <Calendar
+            mode="single"
+            selected={selectedDate}
+            onSelect={(date) => {
+              if (date) setSelectedDate(date);
+            }}
+            className="rounded-xl"
+            modifiers={{
+              hasSchedule: datesWithSchedules,
+            }}
+            modifiersClassNames={{
+              hasSchedule:
+                "font-bold text-[var(--status-upcoming)] bg-[var(--status-upcoming)]/10 rounded-full",
+            }}
+            components={{ DayButton: CustomDayButton }}
+          />
+        )}
       </CardContent>
     </Card>
   );
