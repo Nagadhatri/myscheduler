@@ -14,7 +14,7 @@ if ($LASTEXITCODE -eq 0) {
     $branch = (git rev-parse --abbrev-ref HEAD).Trim()
     Write-Host "Current branch detected: $branch" -ForegroundColor Yellow
     
-    $commitMsg = "feat: Offline VoiceBot with Vosk and Rasa, and Track My Bookings fixes"
+    $commitMsg = "fix: Add auth check to action page and update chatbot email prompt"
     Write-Host "Committing changes..." -ForegroundColor Cyan
     git commit -m $commitMsg
     

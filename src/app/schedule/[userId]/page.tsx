@@ -33,42 +33,55 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { ScrollArea } from "@/components/ui/scroll-area";
-
-function generateDaySlots(dateStr: string) {
+import { AddToCalendar } from "@/components/ui/add-to-calendar";
+function generateDaySlots(dateStr: string, durationMins: number = 60, bufferMins: number = 0, ownerTimezone: string = 'Asia/Kolkata') {
   const slots = [];
   const formatter = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'Asia/Kolkata',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    hour12: false
+    timeZone: ownerTimezone,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hour12: false
   });
   
   const parts = formatter.formatToParts(new Date());
-  let yyyy, mm, dd, hh;
+  let yyyy, mm, dd, hh, min;
   for (const part of parts) {
     if (part.type === 'year') yyyy = part.value;
     if (part.type === 'month') mm = part.value;
     if (part.type === 'day') dd = part.value;
     if (part.type === 'hour') hh = part.value;
+    if (part.type === 'minute') min = part.value;
   }
   const todayDate = `${yyyy}-${mm}-${dd}`;
   const currentHour = hh === '24' ? 0 : parseInt(hh || '0', 10);
+  const currentMin = parseInt(min || '0', 10);
   const isToday = dateStr === todayDate;
 
-  for (let hour = 5; hour < 23; hour++) {
-    if (hour === 12) continue;
-    if (isToday && hour <= currentHour) continue;
+  let startMins = 9 * 60; // 9 AM
+  const endMins = 17 * 60; // 5 PM
 
-    const startH = String(hour).padStart(2, "0");
-    const endH = String(hour + 1).padStart(2, "0");
+  while (startMins + durationMins <= endMins) {
+    const h = Math.floor(startMins / 60);
+    const m = startMins % 60;
+    
+    if (isToday && (h < currentHour || (h === currentHour && m <= currentMin))) {
+        startMins += durationMins + bufferMins;
+        continue;
+    }
+    
+    const startH = String(h).padStart(2, '0');
+    const startM = String(m).padStart(2, '0');
+    
+    const endH = String(Math.floor((startMins + durationMins) / 60)).padStart(2, '0');
+    const endM = String((startMins + durationMins) % 60).padStart(2, '0');
+
     slots.push({
-      id: `${dateStr}-${startH}`,
+      id: `${dateStr}-${startH}:${startM}`,
       date: dateStr,
-      start_time: `${startH}:00:00`,
-      end_time: `${endH}:00:00`,
+      start_time: `${startH}:${startM}:00`,
+      end_time: `${endH}:${endM}:00`,
     });
+    
+    startMins += durationMins + bufferMins;
   }
   return slots;
 }
@@ -87,6 +100,8 @@ export default function UserSchedulePage() {
 
   // Booking dialog
   const [bookingSlot, setBookingSlot] = useState<{ start_time: string; end_time: string } | null>(null);
+  const [bookingSuccessSlot, setBookingSuccessSlot] = useState<{ start_time: string; end_time: string } | null>(null);
+    const [selectedMeetingType, setSelectedMeetingType] = useState<any>(null);
   const [bookName, setBookName] = useState("");
   const [bookEmail, setBookEmail] = useState("");
   const [bookReason, setBookReason] = useState("");
@@ -139,7 +154,10 @@ export default function UserSchedulePage() {
         .select("*")
         .eq("id", userId)
         .single();
-      setProfile(targetProfile);
+            setProfile(targetProfile);
+      if (targetProfile?.meeting_types && targetProfile.meeting_types.length > 0) {
+        setSelectedMeetingType(targetProfile.meeting_types[0]);
+      }
 
       // Check connection
       const { data: conn } = await supabase
@@ -181,7 +199,14 @@ export default function UserSchedulePage() {
   const today = startOfDay(new Date());
   const isPastDate = isBefore(startOfDay(selectedDate), today);
 
-  const allSlots = useMemo(() => generateDaySlots(formattedDate), [formattedDate]);
+  const allSlots = useMemo(() => {
+    return generateDaySlots(
+      formattedDate, 
+      selectedMeetingType?.duration_mins || 60, 
+      profile?.buffer_time_mins || 0,
+      profile?.timezone || 'UTC'
+    );
+  }, [formattedDate, selectedMeetingType, profile]);
 
   const slotsWithStatus = useMemo(() => {
     if (isPastDate) return [];
@@ -226,6 +251,7 @@ export default function UserSchedulePage() {
           name: bookName,
           email: bookEmail,
           description: bookReason,
+          meetingType: selectedMeetingType?.name,
         }),
       });
 
@@ -235,8 +261,7 @@ export default function UserSchedulePage() {
       }
 
       toast.success("🎉 Booking request sent!");
-      setBookingSlot(null);
-      setBookReason("");
+      setBookingSuccessSlot(bookingSlot);
       // Update booked slots locally
       setBookedSlots((prev) => [
         ...prev,
@@ -281,15 +306,39 @@ export default function UserSchedulePage() {
       {/* User info */}
       <div className="flex items-center justify-between gap-3 mb-6">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-            <User className="w-5 h-5 text-primary" />
-          </div>
+          {profile?.avatar_url ? (
+            <img src={profile.avatar_url} alt={profile.display_name} className="w-16 h-16 rounded-full object-cover border border-white/10" />
+          ) : (
+            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+              <User className="w-8 h-8 text-primary" />
+            </div>
+          )}
           <div>
-            <h2 className="text-lg font-bold">{profile?.display_name}&apos;s Schedule</h2>
-            <p className="text-xs text-muted-foreground">{profile?.occupation ? `${profile.occupation} • ${profile.email}` : profile?.email}</p>
+            <h2 className="text-2xl font-bold">{profile?.display_name}'s Schedule</h2>
+            <p className="text-sm text-muted-foreground">{profile?.occupation ? `${profile.occupation} • ${profile.email}` : profile?.email}</p>
+            {profile?.bio && <p className="text-sm mt-1 max-w-xl">{profile.bio}</p>}
+            {profile?.timezone && <p className="text-xs text-primary mt-2 flex items-center gap-1"><Clock className="w-3 h-3" /> All times are in {profile.timezone}</p>}
           </div>
         </div>
       </div>
+
+      {profile?.meeting_types && profile.meeting_types.length > 0 && (
+        <div className="mb-8">
+          <h3 className="text-sm font-semibold mb-3">Select Meeting Type</h3>
+          <div className="flex flex-wrap gap-2">
+            {profile.meeting_types.map((mt: any) => (
+              <Button 
+                key={mt.name} 
+                variant={selectedMeetingType?.name === mt.name ? "default" : "outline"}
+                onClick={() => setSelectedMeetingType(mt)}
+                className="gap-2"
+              >
+                {mt.name} ({mt.duration_mins} min)
+              </Button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Left Column: Calendar & Track Bookings */}
@@ -382,33 +431,75 @@ export default function UserSchedulePage() {
       </div>
 
       {/* Booking Dialog */}
-      <Dialog open={!!bookingSlot} onOpenChange={(open) => !open && setBookingSlot(null)}>
+      <Dialog open={!!bookingSlot || !!bookingSuccessSlot} onOpenChange={(open) => {
+        if (!open) {
+          setBookingSlot(null);
+          setBookingSuccessSlot(null);
+          setBookReason("");
+        }
+      }}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Book Appointment with {profile?.display_name}</DialogTitle>
-            <DialogDescription>
-              {bookingSlot && `${formatTime(bookingSlot.start_time)} – ${formatTime(bookingSlot.end_time)} on ${formattedDate}`}
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleBook} className="space-y-4 mt-2">
-            <div className="space-y-2">
-              <Label>Your Name</Label>
-              <Input required value={bookName} onChange={(e) => setBookName(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Email</Label>
-              <Input required type="email" value={bookEmail} onChange={(e) => setBookEmail(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Reason</Label>
-              <Input required value={bookReason} onChange={(e) => setBookReason(e.target.value)} placeholder="I'd like to discuss..." />
-            </div>
-            <DialogFooter>
-              <Button type="submit" disabled={submitting} className="w-full glow-primary">
-                {submitting ? "Submitting..." : "Submit Request"}
-              </Button>
-            </DialogFooter>
-          </form>
+          {bookingSuccessSlot ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>Booking Requested!</DialogTitle>
+                <DialogDescription>
+                  Your booking request for {formatTime(bookingSuccessSlot.start_time)} – {formatTime(bookingSuccessSlot.end_time)} on {formattedDate} has been sent.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="py-4 flex flex-col items-center text-center space-y-4">
+                <div className="w-16 h-16 bg-green-500/20 text-green-500 rounded-full flex items-center justify-center mb-2">
+                  <CalendarPlus className="w-8 h-8" />
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Don't forget to add this to your calendar!
+                </p>
+                <AddToCalendar event={{
+                  title: `Meeting with ${profile?.display_name}`,
+                  description: bookReason,
+                  startTime: new Date(`${formattedDate}T${bookingSuccessSlot.start_time}`),
+                  endTime: new Date(`${formattedDate}T${bookingSuccessSlot.end_time}`)
+                }} />
+              </div>
+              <DialogFooter>
+                <Button variant="outline" className="w-full" onClick={() => {
+                  setBookingSlot(null);
+                  setBookingSuccessSlot(null);
+                  setBookReason("");
+                }}>
+                  Close
+                </Button>
+              </DialogFooter>
+            </>
+          ) : (
+            <>
+              <DialogHeader>
+                <DialogTitle>Book Appointment with {profile?.display_name}</DialogTitle>
+                <DialogDescription>
+                  {bookingSlot && `${formatTime(bookingSlot.start_time)} – ${formatTime(bookingSlot.end_time)} on ${formattedDate}`}
+                </DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleBook} className="space-y-4 mt-2">
+                <div className="space-y-2">
+                  <Label>Your Name</Label>
+                  <Input required value={bookName} onChange={(e) => setBookName(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Email</Label>
+                  <Input required type="email" value={bookEmail} onChange={(e) => setBookEmail(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Reason</Label>
+                  <Input required value={bookReason} onChange={(e) => setBookReason(e.target.value)} placeholder="I'd like to discuss..." />
+                </div>
+                <DialogFooter>
+                  <Button type="submit" disabled={submitting} className="w-full glow-primary">
+                    {submitting ? "Submitting..." : "Submit Request"}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </div>

@@ -26,7 +26,7 @@ function getServiceRoleKey() {
 
 export async function POST(req: Request) {
   try {
-    const { userId, date, startTime, endTime, name, email, description } = await req.json();
+    const { userId, date, startTime, endTime, name, email, description, meetingType } = await req.json();
 
     if (!userId || !date || !startTime || !endTime || !name || !email) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -112,8 +112,9 @@ export async function POST(req: Request) {
         visitor_email: email,
         description,
         booking_status: bookingStatus,
+        meeting_type: meetingType,
       })
-      .select("id")
+      .select("id, reschedule_token")
       .single();
 
     if (bookingError) throw bookingError;
@@ -162,12 +163,15 @@ export async function POST(req: Request) {
         ? "Your booking request has been submitted successfully!"
         : "Your booking request has been submitted. Since you are not yet connected with this person, they will need to approve your request first.";
 
+      const rescheduleUrl = `${baseUrl}/reschedule/${bookingData.reschedule_token}`;
+      const rescheduleHtml = `<br/><br/><p>Need to change the time? <a href="${rescheduleUrl}">Click here to reschedule</a></p>`;
+
       await sendBookingStatusEmail({
         to: email,
         visitorName: name,
         ownerName: ownerProfile.display_name,
         status: "Submitted",
-        customHtml: `<p>Hi ${name},</p><p>${statusMessage}</p><p><b>Meeting Details:</b><br/>- Date: ${date}<br/>- Time: ${startTime} - ${endTime}<br/>- Description: ${description}</p><p>You will receive another email once the host responds to your request.</p><p>Best,<br/>MyScheduler Team</p>`,
+        customHtml: `<p>Hi ${name},</p><p>${statusMessage}</p><p><b>Meeting Details:</b><br/>- Date: ${date}<br/>- Time: ${startTime} - ${endTime}<br/>- Type: ${meetingType || 'Standard'}<br/>- Description: ${description}</p>${rescheduleHtml}<p>You will receive another email once the host responds to your request.</p><p>Best,<br/>MyScheduler Team</p>`,
       });
       
       // Send in-app notification to the owner

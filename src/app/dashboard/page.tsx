@@ -3,6 +3,7 @@ import ScheduleManagement from "@/components/owner/ScheduleManagement";
 import BookingHistoryButton from "@/components/owner/BookingHistoryButton";
 import ReportsPanel from "@/components/owner/ReportsPanel";
 import { DashboardProvider } from "@/components/owner/DashboardContext";
+import DashboardMetrics from "@/components/owner/DashboardMetrics";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
@@ -34,6 +35,7 @@ export default async function DashboardPage() {
           </div>
         </div>
         <div className="lg:col-span-9 space-y-6">
+          <DashboardMetrics />
           <ScheduleManagement />
         </div>
       </div>

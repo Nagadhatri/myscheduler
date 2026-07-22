@@ -108,7 +108,7 @@ export default function AutomatedChatbot() {
 
         case 'BOOKING_NAME':
             setBookingData(prev => ({ ...prev, name: value }));
-            addMessage('bot', `Please provide your email address:`);
+            addMessage('bot', `Please provide your email address (we need this to notify the host that you have booked a slot with them, so they can accept or reject it):`);
             setCurrentStep('BOOKING_VISITOR_EMAIL');
             break;
 

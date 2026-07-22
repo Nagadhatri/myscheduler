@@ -66,6 +66,7 @@ export async function POST(req: Request) {
       .single();
 
     if (error) {
+      console.error("Update meeting_minutes error:", error);
       return NextResponse.json({ error: "An unexpected server error occurred." }, { status: 500 });
     }
     return NextResponse.json({ minutes: data, updated: true });
@@ -83,6 +84,7 @@ export async function POST(req: Request) {
       .single();
 
     if (error) {
+      console.error("Insert meeting_minutes error:", error);
       return NextResponse.json({ error: "An unexpected server error occurred." }, { status: 500 });
     }
     return NextResponse.json({ minutes: data, created: true });

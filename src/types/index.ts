@@ -3,12 +3,21 @@ export type ScheduleStatus = 'Upcoming' | 'Completed' | 'Rescheduled' | 'Cancell
 export type BookingStatusType = 'Pending' | 'Accepted' | 'Accepted with Remarks' | 'Rejected' | 'Cancelled' | 'Rescheduled';
 export type ConnectionStatus = 'pending' | 'accepted' | 'rejected';
 
+export interface MeetingType {
+  name: string;
+  duration_mins: number;
+}
+
 export interface Profile {
   id: string;
   display_name: string;
   email: string;
   avatar_url: string | null;
   occupation: string | null;
+  bio?: string | null;
+  timezone?: string | null;
+  buffer_time_mins?: number;
+  meeting_types?: MeetingType[];
   created_at: string;
 }
 
@@ -46,6 +55,9 @@ export interface Booking {
   booking_status: BookingStatusType;
   owner_remarks: string | null;
   action_timestamp: string | null;
+  reschedule_token?: string | null;
+  email_reminder_sent?: boolean;
+  meeting_type?: string | null;
   created_at: string;
   updated_at: string;
 }

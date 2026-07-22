@@ -45,6 +45,14 @@ export default function BookingActionPage({
 
     const fetchBooking = async () => {
       setLoading(true);
+      
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        const currentUrl = encodeURIComponent(window.location.pathname + window.location.search);
+        router.push(`/login?redirect=${currentUrl}`);
+        return;
+      }
+
       const { data, error } = await supabase
         .from("bookings")
         .select("*, schedule:schedules(*)")

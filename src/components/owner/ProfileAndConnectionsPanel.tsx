@@ -8,6 +8,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { User, Users, Briefcase, ExternalLink, Calendar } from "lucide-react";
 import Link from "next/link";
+import { toast } from "sonner";
 
 export default function ProfileAndConnectionsPanel() {
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -49,6 +50,7 @@ export default function ProfileAndConnectionsPanel() {
         }
       } catch (err) {
         console.error("Error loading profile or connections:", err);
+        toast.error("Error loading profile");
       } finally {
         setLoading(false);
       }

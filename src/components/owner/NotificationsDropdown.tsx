@@ -67,7 +67,8 @@ export default function NotificationsDropdown() {
       await fetchBookings();
     } catch (error) {
       console.error("Failed to fetch data", error);
-    }
+      toast.error("Failed to load notifications");
+    } finally { };
   };
 
   useEffect(() => {
@@ -96,6 +97,7 @@ export default function NotificationsDropdown() {
       prevUnreadCountRef.current = 0;
     } catch (error) {
       console.error("Failed to mark all as read", error);
+      toast.error("Failed to mark all as read");
     }
   };
 
@@ -111,6 +113,7 @@ export default function NotificationsDropdown() {
       prevUnreadCountRef.current = Math.max(0, prevUnreadCountRef.current - 1);
     } catch (error) {
       console.error("Failed to mark as read", error);
+      toast.error("Failed to mark as read");
     }
   };
 
