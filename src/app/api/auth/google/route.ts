@@ -15,6 +15,11 @@ export async function GET(req: Request) {
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || `${protocol}://${hostHeader}`;
   const callbackUrl = `${baseUrl}/api/auth/google/callback`;
 
+  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+    console.error("Missing Google OAuth credentials in environment variables.");
+    return NextResponse.redirect(`${baseUrl}/dashboard?error=missing_google_credentials`);
+  }
+
   // We use prompt='consent' and access_type='offline' to force a refresh token
   const oauth2Client = new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
