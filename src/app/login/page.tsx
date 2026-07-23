@@ -165,15 +165,22 @@ export default function LoginPage() {
                 </>
               ) : "Sign In"}
             </Button>
-            {loginError === "email_not_verified" && !emailResent && (
-              <Button type="button" variant="outline" className="w-full" onClick={resendVerification}>
-                Resend verification email
-              </Button>
-            )}
             <p className="text-sm text-muted-foreground">
               Don&apos;t have an account?{" "}
               <Link href="/signup" className="text-primary hover:underline">Sign up</Link>
             </p>
+            {!emailResent ? (
+              <p className="text-xs text-muted-foreground pt-2 border-t border-white/5 w-full text-center mt-2">
+                Didn't receive verification email?{" "}
+                <button type="button" onClick={resendVerification} className="text-primary hover:underline bg-transparent border-none p-0 cursor-pointer">
+                  Resend it
+                </button>
+              </p>
+            ) : (
+              <p className="text-xs text-green-400 pt-2 border-t border-white/5 w-full text-center mt-2">
+                Verification email sent! Please check your inbox (and spam).
+              </p>
+            )}
           </CardFooter>
         </form>
       </Card>
