@@ -68,6 +68,12 @@ function generateDaySlots(dateStr: string, durationMins: number = 60, bufferMins
         continue;
     }
     
+    // Exclude lunch time (12:00 PM to 1:00 PM)
+    if (startMins + durationMins > 12 * 60 && startMins < 13 * 60) {
+        startMins = 13 * 60; // Fast-forward to 1:00 PM
+        continue;
+    }
+    
     const startH = String(h).padStart(2, '0');
     const startM = String(m).padStart(2, '0');
     
