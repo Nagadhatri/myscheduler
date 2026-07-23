@@ -23,8 +23,12 @@ export async function GET(req: Request) {
     return NextResponse.redirect(`${urlObj.origin}/login?error=unauthorized`);
   }
 
+  const hostHeader = req.headers.get("host") || "localhost:3000";
+  const protocol = hostHeader.includes("localhost") ? "http" : "https";
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || `${protocol}://${hostHeader}`;
+  const callbackUrl = `${baseUrl}/api/auth/google/callback`;
+
   try {
-    const callbackUrl = `${urlObj.origin}/api/auth/google/callback`;
     const oauth2Client = new google.auth.OAuth2(
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_SECRET,

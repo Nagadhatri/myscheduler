@@ -10,8 +10,10 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const urlObj = new URL(req.url);
-  const callbackUrl = `${urlObj.origin}/api/auth/google/callback`;
+  const hostHeader = req.headers.get("host") || "localhost:3000";
+  const protocol = hostHeader.includes("localhost") ? "http" : "https";
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || `${protocol}://${hostHeader}`;
+  const callbackUrl = `${baseUrl}/api/auth/google/callback`;
 
   // We use prompt='consent' and access_type='offline' to force a refresh token
   const oauth2Client = new google.auth.OAuth2(
@@ -27,8 +29,9 @@ export async function GET(req: Request) {
       'https://www.googleapis.com/auth/calendar.events',
       'https://www.googleapis.com/auth/calendar.readonly'
     ],
-    // Pass user ID in state so we can verify or use it if needed (though session cookie handles auth)
-    state: user.id
+    // Pass user ID in state so we can verify or use it if needed
+    state: user.id,
+    redirect_uri: callbackUrl
   });
 
   return NextResponse.redirect(url);
