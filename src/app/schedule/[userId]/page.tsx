@@ -97,6 +97,7 @@ export default function UserSchedulePage() {
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [bookedSlots, setBookedSlots] = useState<{ date: string; start_time: string; status: string }[]>([]);
+  const [googleBusyTimes, setGoogleBusyTimes] = useState<{ start: string; end: string }[]>([]);
 
   // Booking dialog
   const [bookingSlot, setBookingSlot] = useState<{ start_time: string; end_time: string } | null>(null);
@@ -188,6 +189,19 @@ export default function UserSchedulePage() {
             }))
           );
         }
+
+        // Fetch Google Calendar busy times for the next 30 days
+        const thirtyDaysFromNow = new Date();
+        thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+        try {
+           const gRes = await fetch(`/api/busy-times?userId=${userId}&startDate=${format(new Date(), 'yyyy-MM-dd')}&endDate=${format(thirtyDaysFromNow, 'yyyy-MM-dd')}`);
+           const gData = await gRes.json();
+           if (gData.busy) {
+               setGoogleBusyTimes(gData.busy);
+           }
+        } catch (err) {
+           console.error("Failed to fetch google busy times", err);
+        }
       }
 
       setLoading(false);
@@ -214,9 +228,26 @@ export default function UserSchedulePage() {
       const booked = bookedSlots.find(
         (b) => b.date === slot.date && b.start_time === slot.start_time
       );
-      return { ...slot, isBooked: !!booked, status: booked?.status };
+      
+      const slotStart = new Date(`${slot.date}T${slot.start_time}`);
+      const slotEnd = new Date(`${slot.date}T${slot.end_time}`);
+      let isGoogleBusy = false;
+      for (const busy of googleBusyTimes) {
+         const busyStart = new Date(busy.start);
+         const busyEnd = new Date(busy.end);
+         if (slotStart < busyEnd && slotEnd > busyStart) {
+             isGoogleBusy = true;
+             break;
+         }
+      }
+      
+      return { 
+        ...slot, 
+        isBooked: !!booked || isGoogleBusy, 
+        status: booked?.status || (isGoogleBusy ? "Busy (Google)" : undefined) 
+      };
     });
-  }, [allSlots, bookedSlots, isPastDate, formattedDate]);
+  }, [allSlots, bookedSlots, isPastDate, formattedDate, googleBusyTimes]);
 
   const datesWithAvailability = useMemo(() => {
     const dates: Date[] = [];

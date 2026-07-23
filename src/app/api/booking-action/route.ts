@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { sendBookingStatusEmail } from "@/lib/email";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import { createGoogleEvent } from "@/lib/googleCalendar";
 
 export async function POST(req: Request) {
   try {
@@ -52,6 +53,28 @@ export async function POST(req: Request) {
 
     if (updateError) {
       throw updateError;
+    }
+    
+    // Fetch owner profile to get timezone
+    const { data: ownerProfile } = await supabaseAdmin
+      .from("profiles")
+      .select("display_name, timezone")
+      .eq("id", user.id)
+      .single();
+
+    if (status.startsWith("Accepted")) {
+       try {
+         await createGoogleEvent(supabaseAdmin, user.id, {
+           title: booking.schedule.title,
+           description: booking.description,
+           startTime: `${booking.schedule.date}T${booking.schedule.start_time}`,
+           endTime: `${booking.schedule.date}T${booking.schedule.end_time}`,
+           visitorEmail: booking.visitor_email,
+           timezone: ownerProfile?.timezone || 'UTC'
+         });
+       } catch (err) {
+         console.error("Failed to push to Google Calendar", err);
+       }
     }
 
     // Send email to visitor

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { sendBookingStatusEmail } from "@/lib/email";
+import { getBusyTimes } from "@/lib/googleCalendar";
 import fs from "fs";
 import path from "path";
 
@@ -82,6 +83,29 @@ export async function POST(req: Request) {
 
     if (isBooked) {
       return NextResponse.json({ error: "This slot is already booked or has a pending request" }, { status: 409 });
+    }
+
+    // 1b. Check Google Calendar overlap
+    const slotStart = new Date(`${date}T${startTime}`);
+    const slotEnd = new Date(`${date}T${endTime}`);
+    const timeMin = new Date(date);
+    const timeMax = new Date(date);
+    timeMax.setDate(timeMax.getDate() + 1);
+
+    const busyTimes = await getBusyTimes(supabase, userId, timeMin.toISOString(), timeMax.toISOString());
+    let isGoogleBusy = false;
+    for (const busy of busyTimes) {
+      if (!busy.start || !busy.end) continue;
+      const busyStart = new Date(busy.start as string);
+      const busyEnd = new Date(busy.end as string);
+      if (slotStart < busyEnd && slotEnd > busyStart) {
+        isGoogleBusy = true;
+        break;
+      }
+    }
+
+    if (isGoogleBusy) {
+      return NextResponse.json({ error: "This slot is blocked on the host's Google Calendar" }, { status: 409 });
     }
 
     // 2. Create the schedule slot
