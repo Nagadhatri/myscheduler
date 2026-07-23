@@ -237,7 +237,10 @@ export default function AutomatedChatbot() {
               const { data } = await supabase.from('bookings').select('*, schedules(*)').eq('visitor_email', value.trim());
               
               if (data && data.length > 0) {
-                  const upcoming = data.filter(b => b.booking_status === 'Pending' || b.booking_status === 'Accepted');
+                  const d = new Date();
+                  const todayStr = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+                  const upcoming = data.filter(b => (b.booking_status === 'Pending' || b.booking_status === 'Accepted') && b.schedules?.date >= todayStr);
+                  
                   if(upcoming.length > 0) {
                       setCancelData(prev => ({ ...prev, bookings: upcoming }));
                       addMessage('bot', `Found ${upcoming.length} upcoming meetings. Which one do you want to cancel?`);
@@ -290,7 +293,9 @@ export default function AutomatedChatbot() {
                 addMessage('bot', 'Fetching your schedule...');
                 const { data } = await supabase.from('bookings').select('*, schedules(*)').eq('visitor_email', value.trim());
                 if (data && data.length > 0) {
-                    const upcoming = data.filter(b => b.booking_status === 'Pending' || b.booking_status === 'Accepted');
+                    const d = new Date();
+                    const todayStr = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+                    const upcoming = data.filter(b => (b.booking_status === 'Pending' || b.booking_status === 'Accepted') && b.schedules?.date >= todayStr);
                     if (upcoming.length > 0) {
                         addMessage('bot', `You have ${upcoming.length} upcoming meetings:`);
                         upcoming.forEach(b => {

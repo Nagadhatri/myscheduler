@@ -8,7 +8,6 @@ import { LayoutDashboard, LogOut, Users, CalendarDays } from "lucide-react";
 import Link from "next/link";
 import NotificationsDropdown from "@/components/owner/NotificationsDropdown";
 import ReportsPanel from "@/components/owner/ReportsPanel";
-import ChatHistoryButton from "@/components/owner/ChatHistoryButton";
 import BookingHistoryButton from "@/components/owner/BookingHistoryButton";
 import { DashboardProvider } from "@/components/owner/DashboardContext";
 
@@ -65,7 +64,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </nav>
           </div>
           <div className="flex items-center gap-2">
-            <ChatHistoryButton />
             <NotificationsDropdown />
             <div className="w-px h-4 bg-white/10 mx-1" />
             <Button
