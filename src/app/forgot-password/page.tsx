@@ -49,13 +49,14 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 relative">
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+    <div className="min-h-screen flex flex-col relative">
+      <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
         <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-[var(--status-upcoming)]/5 rounded-full blur-3xl" />
       </div>
 
-      <Card className="w-full max-w-md glass-card border-white/10 relative z-10">
+      <div className="flex-grow flex items-center justify-center p-4 relative z-10 py-12">
+        <Card className="w-full max-w-md glass-card border-white/10">
         <div className="absolute top-4 left-4">
           <Link href="/" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors">
             <ArrowLeft className="w-4 h-4" />
@@ -125,9 +126,10 @@ export default function ForgotPasswordPage() {
           </form>
         )}
       </Card>
+      </div>
 
       {/* Standard Footer */}
-      <footer className="absolute bottom-0 w-full z-10 border-t border-white/5 py-8 text-center text-sm text-muted-foreground bg-card/10">
+      <footer className="w-full relative z-10 border-t border-white/5 py-8 text-center text-sm text-muted-foreground bg-card/10">
         Built with ❤️ using <a href="https://nextjs.org" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Next.js</a>, <a href="https://supabase.com" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Supabase</a> & <a href="https://gemini.google.com" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Gemini AI</a><br/>
         <span className="text-xs opacity-70 mt-2 block">© 2026 MyScheduler. All rights reserved.</span>
       </footer>

@@ -26,26 +26,39 @@ export default function ResetPasswordPage() {
   const supabase = createClient();
 
   useEffect(() => {
-    // Check if we are authenticated (Supabase sets session from URL hash tokens automatically)
+    let timeoutId: NodeJS.Timeout;
+
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         setReady(true);
       } else {
-        // Wait a short bit to let the client load hash from URL
-        setTimeout(async () => {
+        // Fallback timeout in case auth takes a bit or they visited without session
+        timeoutId = setTimeout(async () => {
           const { data: { session: delayedSession } } = await supabase.auth.getSession();
           if (delayedSession) {
             setReady(true);
           } else {
-            // If still no session, they might have visited this page directly without reset link
             toast.error("Invalid reset link or session expired. Please request a new link.");
             router.push("/forgot-password");
           }
-        }, 1000);
+        }, 5000);
       }
     };
+    
     checkSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        setReady(true);
+        if (timeoutId) clearTimeout(timeoutId);
+      }
+    });
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      subscription.unsubscribe();
+    };
   }, [router, supabase.auth]);
 
   const handlePasswordUpdate = async (e: React.FormEvent) => {
@@ -74,13 +87,14 @@ export default function ResetPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 relative">
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+    <div className="min-h-screen flex flex-col relative">
+      <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
         <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-[var(--status-upcoming)]/5 rounded-full blur-3xl" />
       </div>
 
-      <Card className="w-full max-w-md glass-card border-white/10 relative z-10">
+      <div className="flex-grow flex items-center justify-center p-4 relative z-10 py-12">
+        <Card className="w-full max-w-md glass-card border-white/10">
         <CardHeader className="text-center pb-2">
           <div className="w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto mb-4">
             <Key className="w-7 h-7 text-primary" />
@@ -137,6 +151,7 @@ export default function ResetPasswordPage() {
           </form>
         )}
       </Card>
+      </div>
     </div>
   );
 }

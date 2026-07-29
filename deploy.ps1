@@ -14,7 +14,7 @@ if ($LASTEXITCODE -eq 0) {
     $branch = (git rev-parse --abbrev-ref HEAD).Trim()
     Write-Host "Current branch detected: $branch" -ForegroundColor Yellow
     
-    $commitMsg = "fix: Add auth check to action page and update chatbot email prompt"
+    $commitMsg = "fix: auth page layout overlap and add confirm password field"
     Write-Host "Committing changes..." -ForegroundColor Cyan
     git commit -m $commitMsg
     

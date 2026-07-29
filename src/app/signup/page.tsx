@@ -23,6 +23,7 @@ export default function SignupPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [occupation, setOccupation] = useState("");
   const [loading, setLoading] = useState(false);
@@ -55,6 +56,10 @@ export default function SignupPage() {
     }
     if (strength < 2) {
       toast.error("Password is too weak. Please add numbers or uppercase letters.");
+      return;
+    }
+    if (password !== confirmPassword) {
+      toast.error("Passwords do not match.");
       return;
     }
     setLoading(true);
@@ -154,13 +159,14 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 relative">
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+    <div className="min-h-screen flex flex-col relative">
+      <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
         <div className="absolute top-1/3 right-1/4 w-96 h-96 bg-[var(--status-completed)]/5 rounded-full blur-3xl" />
         <div className="absolute bottom-1/4 left-1/4 w-80 h-80 bg-primary/5 rounded-full blur-3xl" />
       </div>
 
-      <Card className="w-full max-w-md glass-card border-white/10 relative z-10">
+      <div className="flex-grow flex items-center justify-center p-4 relative z-10 py-12">
+        <Card className="w-full max-w-md glass-card border-white/10">
         <div className="absolute top-4 left-4">
           <Link href="/" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors">
             <ArrowLeft className="w-4 h-4" />
@@ -246,6 +252,21 @@ export default function SignupPage() {
               )}
             </div>
             <div className="space-y-2">
+              <Label htmlFor="confirmPassword" className="text-sm">Confirm Password</Label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  id="confirmPassword"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Repeat password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                  className="pl-10 pr-10 bg-white/5 border-white/10"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="occupation" className="text-sm">Occupation</Label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -276,9 +297,10 @@ export default function SignupPage() {
           </CardFooter>
         </form>
       </Card>
+      </div>
 
       {/* Standard Footer */}
-      <footer className="absolute bottom-0 w-full z-10 border-t border-white/5 py-8 text-center text-sm text-muted-foreground bg-card/10">
+      <footer className="w-full relative z-10 border-t border-white/5 py-8 text-center text-sm text-muted-foreground bg-card/10">
         Built with ❤️ using <a href="https://nextjs.org" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Next.js</a>, <a href="https://supabase.com" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Supabase</a> & <a href="https://gemini.google.com" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Gemini AI</a><br/>
         <span className="text-xs opacity-70 mt-2 block">© 2026 MyScheduler. All rights reserved.</span>
       </footer>
