@@ -301,8 +301,7 @@ export default function SignupPage() {
 
       {/* Standard Footer */}
       <footer className="w-full relative z-10 border-t border-white/5 py-8 text-center text-sm text-muted-foreground bg-card/10">
-        Built with ❤️ using <a href="https://nextjs.org" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Next.js</a>, <a href="https://supabase.com" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Supabase</a> & <a href="https://gemini.google.com" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Gemini AI</a><br/>
-        <span className="text-xs opacity-70 mt-2 block">© 2026 MyScheduler. All rights reserved.</span>
+        <span className="text-xs opacity-70 block">© {new Date().getFullYear()} MyScheduler. All rights reserved.</span>
       </footer>
 
     </div>
